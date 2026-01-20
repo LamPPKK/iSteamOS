@@ -13,7 +13,7 @@ Hỗ trợ:
 ## 🚀 Cài FULL
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/steamos-postinstall.git
+git clone https://github.com/LamPPKK/iSteamOS.git
 cd steamos-postinstall
 chmod +x install_steamos.sh
 ./install_steamos.sh
