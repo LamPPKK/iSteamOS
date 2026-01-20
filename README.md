@@ -105,6 +105,18 @@ reboot
 
 ---
 
+### VS Code Keyring on SteamOS
+
+SteamOS 3.7 does not ship kwalletd or KWallet Manager.
+OS keyring is unavailable by design.
+
+Recommended fix:
+```bash
+flatpak override --user \
+  --env=VSCODE_CREDENTIAL_STORE=basic \
+  com.visualstudio.code
+```
+
 ## ❌ KHÔNG BAO GỒM
 
 * Set DNS 1.1.1.1
