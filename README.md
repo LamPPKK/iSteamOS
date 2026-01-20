@@ -28,6 +28,7 @@ chmod +x install_steamos.sh
 ### 🍺 Homebrew + neofetch
 
 ```bash
+sudo steamos-devmode enable --no-prompt
 sudo steamos-readonly disable
 NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install neofetch
