@@ -159,7 +159,7 @@ install_decky_loader() (
     local had_flatpak_cef_marker=0
 
     # Invoked by the EXIT trap below.
-    # shellcheck disable=SC2329
+    # shellcheck disable=SC2317,SC2329
     rollback_loader() {
         local exit_code=$?
         local rollback_failed=0
@@ -315,8 +315,12 @@ install_decky_loader() (
     sudo grep -Fqx "ExecStart=$services_dir/PluginLoader" "$root_work_dir/plugin_loader.service" || \
         die "Decky service substitution failed"
 
-    sudo systemctl is-active --quiet plugin_loader.service && loader_was_active=1 || true
-    sudo systemctl is-enabled --quiet plugin_loader.service && loader_was_enabled=1 || true
+    if sudo systemctl is-active --quiet plugin_loader.service; then
+        loader_was_active=1
+    fi
+    if sudo systemctl is-enabled --quiet plugin_loader.service; then
+        loader_was_enabled=1
+    fi
 
     if [[ -f "$services_dir/PluginLoader" ]]; then
         sudo cp -a -- "$services_dir/PluginLoader" "$root_work_dir/PluginLoader.backup"
@@ -385,7 +389,7 @@ install_simple_decky_tdp() (
     local install_complete=0
 
     # Invoked by the EXIT trap below.
-    # shellcheck disable=SC2329
+    # shellcheck disable=SC2317,SC2329
     rollback_simple_tdp() {
         local exit_code=$?
         local rollback_failed=0
@@ -458,7 +462,9 @@ install_simple_decky_tdp() (
     sudo chmod 0555 "$staging_dir/bin/ryzenadj"
 
     backup_dir="$root_work_dir/SimpleDeckyTDP.backup"
-    sudo systemctl is-active --quiet plugin_loader.service && loader_was_active=1 || true
+    if sudo systemctl is-active --quiet plugin_loader.service; then
+        loader_was_active=1
+    fi
     if (( loader_was_active )); then
         sudo systemctl stop plugin_loader.service
     fi
