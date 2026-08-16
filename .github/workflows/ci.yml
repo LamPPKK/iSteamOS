@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check Bash syntax
+        run: bash -n install_isteamos.sh scripts/*.sh
+      - name: Run ShellCheck
+        run: shellcheck install_isteamos.sh scripts/*.sh
+      - name: Compile Python safety overrides
+        run: python3 -m py_compile patches/simple_decky_tdp/plugin_update.py

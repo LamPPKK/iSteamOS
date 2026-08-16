@@ -1,147 +1,66 @@
 # SteamOS Post Install – All in One
 
-Cài lại SteamOS → clone repo → chạy 1 lệnh là xong.
+Script cài đặt và cập nhật môi trường SteamOS sau khi cài lại hệ thống.
 
-Hỗ trợ:
+Hỗ trợ các máy x86_64 chạy SteamOS, gồm Steam Deck và một số handheld như ROG Ally.
 
-* Steam Deck
-* ROG Ally
-* SteamOS + màn hình rời
+## Cài đặt
 
----
-
-## 🚀 Cài FULL
+Mở Konsole trong Desktop Mode rồi chạy:
 
 ```bash
 git clone https://github.com/LamPPKK/iSteamOS.git
-cd steamos-postinstall
-chmod +x install_steamos.sh
-./install_steamos.sh
+cd iSteamOS
+./install_isteamos.sh
 ```
 
-➡️ **Reboot sau khi cài**
+Không chạy script bằng `sudo`. Script sẽ tự yêu cầu quyền quản trị ở những bước cần thiết.
 
----
+Sau khi hoàn tất, khởi động lại máy.
 
-## 📦 CÀI RIÊNG TỪNG PHẦN
+## Script sẽ làm gì
 
-### 🍺 Homebrew + neofetch
+- Ghi nhớ trạng thái readonly hiện tại, tạm tắt khi cần và khôi phục trước khi thoát, kể cả khi gặp lỗi.
+- Bật SteamOS developer mode và khởi tạo môi trường phát triển.
+- Cập nhật đầy đủ gói hệ thống bằng `pacman -Syu` và cài các dependency cần thiết.
+- Cài hoặc cập nhật Homebrew và `fastfetch`.
+- Cài hoặc cập nhật Visual Studio Code và Microsoft Edge từ Flathub.
+- Cấu hình `password-store=basic` trong `~/.vscode/argv.json` cho VS Code vì SteamOS không cung cấp KWallet đầy đủ.
+- Cài Fcitx5 cùng bộ gõ tiếng Việt Unikey và bật Fcitx5 khi đăng nhập.
+- Cài Decky Loader v3.2.6, SimpleDeckyTDP v1.0.5 và DeckyWARP v1.6.1 từ fork được duy trì tại `LamPPKK/DeckyWARP`.
 
-```bash
-sudo steamos-devmode enable --no-prompt
-sudo steamos-readonly disable
-NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install neofetch
-```
+Homebrew bootstrap entrypoint được ghim theo commit và SHA-256. Với các thành phần Decky, binary, service file, archive và installer đều được ghim theo phiên bản/commit và kiểm tra SHA-256 trước khi dùng. Decky Loader và SimpleDeckyTDP được cài qua staging có rollback, không xóa bản đang hoạt động trước khi tải và kiểm tra bản mới.
 
----
+## Những thay đổi so với bản cũ
 
-### 📦 Flatpak (VS Code + Edge)
+- `neofetch` được thay bằng `fastfetch` vì công thức Homebrew của `neofetch` không còn tồn tại.
+- DeckyWARP được chuyển sang fork `LamPPKK/DeckyWARP`, dùng API Decky hiện hành, Cloudflare WARP 2026.6.880-1 và không thêm Chaotic-AUR vào `pacman.conf`.
+- Không còn chạy trực tiếp installer Decky/SimpleDeckyTDP có tải lồng từ `latest`; script ghim và kiểm tra chính payload được cài, đồng thời phục hồi bản cũ nếu cài hoặc restart dịch vụ thất bại.
+- Trình cập nhật OTA không xác minh TLS/checksum của SimpleDeckyTDP v1.0.5 bị vô hiệu hóa ở cả backend và kiểm tra phiên bản; hãy chạy lại iSteamOS khi muốn nâng plugin này bằng payload đã xác minh.
+- Không còn tạo `GAMESCOPE_FORCE_HDR=0` vì đây không phải thiết lập Gamescope hiện hành được hỗ trợ.
+- Nếu script tìm thấy đúng file Gamescope cũ do phiên bản trước tạo, file đó sẽ được đổi tên thành bản sao lưu thay vì bị xóa.
+- Không xóa cache Gamescope.
 
-```bash
-flatpak install -y flathub com.visualstudio.code
-flatpak install -y flathub com.microsoft.Edge
-```
+## Sau khi khởi động lại
 
----
-
-### ⌨️ fcitx5 + Unikey (fix không gõ được GUI)
-
-```bash
-sudo pacman -S fcitx5 fcitx5-configtool fcitx5-gtk fcitx5-qt fcitx5-unikey
-
-mkdir -p ~/.config/environment.d
-cat <<EOF > ~/.config/environment.d/fcitx5.conf
-GTK_IM_MODULE=fcitx
-QT_IM_MODULE=fcitx
-XMODIFIERS=@im=fcitx
-EOF
-
-mkdir -p ~/.config/autostart
-cp /usr/share/applications/org.fcitx.Fcitx5.desktop ~/.config/autostart/
-
-reboot
-```
-
----
-
-### 🎮 Decky Loader
+Mở **Fcitx5 Configuration**, thêm **Unikey**, rồi kiểm tra:
 
 ```bash
-curl -L https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh | sh
-```
-
----
-
-### ⚡ SimpleDeckyTDP
-
-```bash
-curl -L https://github.com/aarron-lee/SimpleDeckyTDP/raw/main/install.sh | sh
-```
-
----
-
-### ☁️ DeckyWARP (Cloudflare WARP)
-
-```bash
-bash <(curl -s https://raw.githubusercontent.com/Kit1112/DeckyWARP/main/InstallPlugin.sh)
-```
-
-⚠️ Có thể **không hoạt động trên Wi-Fi enterprise**.
-
----
-
-### 🎨 Fix màn hình rời bị tối ở Gaming Mode
-
-```bash
-mkdir -p ~/.config/environment.d
-cat <<EOF > ~/.config/environment.d/gamescope.conf
-GAMESCOPE_FORCE_HDR=0
-EOF
-
-rm -rf ~/.cache/gamescope
-reboot
-```
-
----
-
-### VS Code Keyring on SteamOS
-
-SteamOS 3.7 does not ship kwalletd or KWallet Manager.
-OS keyring is unavailable by design.
-
-Recommended fix:
-```bash
-flatpak override --user \
-  --env=VSCODE_CREDENTIAL_STORE=basic \
-  com.visualstudio.code
-```
-
-## ❌ KHÔNG BAO GỒM
-
-* Set DNS 1.1.1.1
-* Cloudflare WARP hệ thống
-* VPN bắt buộc
-
----
-
-## 🧪 CHECK SAU CÀI
-
-```bash
-neofetch
+fastfetch
 fcitx5-remote
 flatpak list
 ```
 
-Gaming Mode:
+Trong Gaming Mode, kiểm tra Decky Loader, SimpleDeckyTDP và DeckyWARP từ menu Quick Access. Lần đầu mở DeckyWARP, chọn **Install Cloudflare WARP**; plugin cũng có nút **Update / repair Cloudflare WARP**.
 
-* Decky Loader hoạt động
-* SimpleDeckyTDP OK
-* DeckyWARP (nếu dùng)
-* Không bị ngả màu
+## Lưu ý
 
----
+- Các gói cài trực tiếp bằng `pacman` có thể bị SteamOS thay thế sau một bản cập nhật hệ điều hành lớn; khi đó hãy chạy lại script.
+- Cloudflare không hỗ trợ SteamOS/Arch chính thức. DeckyWARP đóng gói binary Ubuntu chính thức bằng recipe được ghim từ AUR, vì vậy nên kiểm tra kết nối thực tế sau khi cài.
+- Visual Studio Code và Microsoft Edge trên Flathub là các gói do cộng đồng đóng gói, không phải bản Flatpak được Microsoft hỗ trợ chính thức.
+- `password-store=basic` chỉ dùng cơ chế che giấu có thể đảo ngược, không phải mã hóa an toàn. Script sẽ cảnh báo và không sửa `argv.json` nếu file hiện có chứa comment hoặc JSON không hợp lệ.
+- Khi nâng phiên bản Homebrew installer hoặc các pin trong `scripts/install_decky_components.sh`, phải cập nhật đồng thời checksum SHA-256 tương ứng.
 
-## 📜 LICENSE
+## License
 
-MIT – Use at your own risk
+MIT – Use at your own risk.
