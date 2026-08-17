@@ -23,9 +23,9 @@ Sau khi hoàn tất, khởi động lại máy.
 - Ghi nhớ trạng thái readonly hiện tại, tạm tắt khi cần và khôi phục trước khi thoát, kể cả khi gặp lỗi.
 - Bật SteamOS developer mode và khởi tạo môi trường phát triển.
 - Cập nhật đầy đủ gói hệ thống bằng `pacman -Syu` và cài các dependency cần thiết.
-- Cài hoặc cập nhật Homebrew và `fastfetch`.
+- Cài hoặc cập nhật Homebrew, cấu hình `brew shellenv` cho shell người dùng và cài `fastfetch`.
 - Cài hoặc cập nhật Visual Studio Code và Microsoft Edge từ Flathub.
-- Cấu hình `password-store=basic` trong `~/.vscode/argv.json` cho VS Code vì SteamOS không cung cấp KWallet đầy đủ.
+- Bổ sung KWallet, KWalletManager, `kwallet-pam`/Secret Service và cấu hình VS Code cùng Microsoft Edge dùng kho mật khẩu mã hóa thay cho `password-store=basic`.
 - Cài Fcitx5 cùng bộ gõ tiếng Việt Unikey và bật Fcitx5 khi đăng nhập.
 - Cài Decky Loader v3.2.6, SimpleDeckyTDP v1.0.5 và DeckyWARP v1.6.1 từ fork được duy trì tại `LamPPKK/DeckyWARP`.
 
@@ -53,12 +53,15 @@ flatpak list
 
 Trong Gaming Mode, kiểm tra Decky Loader, SimpleDeckyTDP và DeckyWARP từ menu Quick Access. Lần đầu mở DeckyWARP, chọn **Install Cloudflare WARP**; plugin cũng có nút **Update / repair Cloudflare WARP**.
 
+Lần đầu VS Code hoặc Edge cần lưu thông tin đăng nhập, mở **KWalletManager** trong Desktop Mode và tạo/mở ví mặc định `kdewallet`. Nên dùng mật khẩu đăng nhập SteamOS cho ví nếu muốn `kwallet-pam` có thể tự mở ví trong phiên đăng nhập có nhập mật khẩu. SteamOS thường tự đăng nhập, nên sau khi khởi động lại KWallet vẫn có thể hỏi mật khẩu ví một lần; script không tự sửa PAM hoặc đặt mật khẩu ví thay bạn. Sau khi chuyển khỏi `basic`, ứng dụng có thể yêu cầu đăng nhập lại một lần để lưu credential mới vào ví mã hóa.
+
 ## Lưu ý
 
 - Các gói cài trực tiếp bằng `pacman` có thể bị SteamOS thay thế sau một bản cập nhật hệ điều hành lớn; khi đó hãy chạy lại script.
 - Cloudflare không hỗ trợ SteamOS/Arch chính thức. DeckyWARP đóng gói binary Ubuntu chính thức bằng recipe được ghim từ AUR, vì vậy nên kiểm tra kết nối thực tế sau khi cài.
 - Visual Studio Code và Microsoft Edge trên Flathub là các gói do cộng đồng đóng gói, không phải bản Flatpak được Microsoft hỗ trợ chính thức.
-- `password-store=basic` chỉ dùng cơ chế che giấu có thể đảo ngược, không phải mã hóa an toàn. Script sẽ cảnh báo và không sửa `argv.json` nếu file hiện có chứa comment hoặc JSON không hợp lệ.
+- Script đặt `password-store=kwallet5` cho VS Code theo hướng dẫn tương thích KDE 6 của Microsoft; Edge dùng `kwallet6` khi daemon mới có sẵn và quay về `kwallet5` trên KDE cũ. Quyền D-Bus được giới hạn cho dịch vụ KWallet/Secret Service, và script giữ lại bản sao lưu trước khi thay đổi cấu hình hiện có.
+- Nếu `~/.vscode/argv.json` có comment hoặc JSON không hợp lệ, script giữ nguyên file và hướng dẫn thêm `"password-store": "kwallet5"` thủ công để tránh làm mất cấu hình.
 - Khi nâng phiên bản Homebrew installer hoặc các pin trong `scripts/install_decky_components.sh`, phải cập nhật đồng thời checksum SHA-256 tương ứng.
 
 ## License

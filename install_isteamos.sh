@@ -142,20 +142,65 @@ configure_vscode_password_store() {
     if [[ ! -e "$argv_file" ]]; then
         install_config "$argv_file" <<'EOF'
 {
-  "password-store": "basic"
+  "password-store": "kwallet5"
 }
 EOF
     elif jq -e 'type == "object"' "$argv_file" >/dev/null 2>&1; then
-        jq '. + {"password-store": "basic"}' "$argv_file" > "$updated_file"
+        jq '. + {"password-store": "kwallet5"}' "$argv_file" > "$updated_file"
         install_config "$argv_file" < "$updated_file"
     else
         printf '%s\n' \
             "WARNING: $argv_file contains JSON with comments or invalid JSON; leaving it unchanged." \
-            'Open VS Code and run "Preferences: Configure Runtime Arguments", then add "password-store": "basic" manually.' >&2
+            'Open VS Code and run "Preferences: Configure Runtime Arguments", then add "password-store": "kwallet5" manually.' >&2
+    fi
+}
+
+configure_edge_password_store() {
+    local flags_file="$HOME/.var/app/com.microsoft.Edge/config/edge-flags.conf"
+    local updated_file="$temp_dir/edge-flags.conf"
+    local password_store=kwallet5
+
+    if command -v kwalletd6 >/dev/null 2>&1; then
+        password_store=kwallet6
     fi
 
-    printf '%s\n' \
-        "WARNING: VS Code password-store=basic uses weak, reversible obfuscation; use it only because SteamOS has no supported keyring." >&2
+    if [[ -L "$flags_file" || ( -e "$flags_file" && ! -f "$flags_file" ) ]]; then
+        printf 'WARNING: Refusing to replace non-regular Edge flags file: %s\n' "$flags_file" >&2
+        return
+    fi
+
+    if [[ -f "$flags_file" ]]; then
+        awk -v password_store="$password_store" '
+            BEGIN { password_store_written = 0 }
+            /^[[:space:]]*--password-store(=|[[:space:]])/ {
+                if (!password_store_written) {
+                    print "--password-store=" password_store
+                    password_store_written = 1
+                }
+                next
+            }
+            { print }
+            END {
+                if (!password_store_written) {
+                    print "--password-store=" password_store
+                }
+            }
+        ' "$flags_file" > "$updated_file"
+    else
+        printf '%s\n' "--password-store=$password_store" > "$updated_file"
+    fi
+
+    install_config "$flags_file" < "$updated_file"
+}
+
+configure_flatpak_keyring_access() {
+    local app_id=$1
+
+    flatpak override --user \
+        --talk-name=org.kde.kwalletd5 \
+        --talk-name=org.kde.kwalletd6 \
+        --talk-name=org.freedesktop.secrets \
+        "$app_id"
 }
 
 (( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
@@ -194,11 +239,16 @@ sudo pacman -Syu --needed --noconfirm \
     fcitx5-configtool \
     fcitx5-gtk \
     fcitx5-qt \
-    fcitx5-unikey
+    fcitx5-unikey \
+    kwallet \
+    kwallet-pam \
+    kwalletmanager \
+    libsecret
 
 require_command jq
 require_command 7z
 require_command unzip
+require_command awk
 
 # Homebrew, user Flatpaks and desktop configuration do not need a writable OS
 # image. Restore it before the slower network operations below.
@@ -246,7 +296,12 @@ fi
 log "Installing or updating Flatpak applications"
 install_or_update_flatpak com.visualstudio.code
 install_or_update_flatpak com.microsoft.Edge
+
+log "Configuring encrypted KWallet credential storage"
 configure_vscode_password_store
+configure_edge_password_store
+configure_flatpak_keyring_access com.visualstudio.code
+configure_flatpak_keyring_access com.microsoft.Edge
 
 log "Configuring Fcitx5 and Unikey"
 install_config "$HOME/.config/environment.d/fcitx5.conf" <<'EOF'
@@ -285,4 +340,5 @@ fi
 restore_readonly
 
 log "DONE"
-printf '%s\n' "Please reboot the system, then open Fcitx5 Configuration and select Unikey."
+printf '%s\n' \
+    "Please reboot the system, open KWalletManager once to create or unlock kdewallet, then open Fcitx5 Configuration and select Unikey."
