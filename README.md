@@ -1,68 +1,132 @@
-# SteamOS Post Install – All in One
+# iSteamOS – Bộ Cập Nhật Bổ Sung Cho ASUS ROG Ally Z1 (SteamOS)
 
-Script cài đặt và cập nhật môi trường SteamOS sau khi cài lại hệ thống.
+Bộ script cài đặt và cập nhật môi trường bổ sung toàn diện dành cho anh em sử dụng **SteamOS** trên máy chơi game cầm tay **ASUS ROG Ally Z1 / Z1 Extreme** (cũng như Steam Deck và các dòng handheld PC x86_64 khác).
 
-Hỗ trợ các máy x86_64 chạy SteamOS, gồm Steam Deck và một số handheld như ROG Ally.
+---
 
-## Cài đặt
+## Tính năng nổi bật cho ASUS ROG Ally Z1
 
-Mở Konsole trong Desktop Mode rồi chạy:
+1. **Quản lý công suất TDP & Xung nhịp cho AMD Ryzen Z1 / Z1 Extreme:**
+   - Cài sẵn **Decky Loader v3.3.1** và plugin **SimpleDeckyTDP v1.0.7** với backend `ryzenadj` đã được vá mã an toàn (có hash SHA-256 xác thực).
+   - Cho phép anh em chỉnh trực tiếp công suất TDP (W), xung CPU/GPU, giới hạn nhiệt độ ngay trong menu Quick Access (`...`) ở Gaming Mode của SteamOS.
+
+2. **Khắc phục triệt để lỗi Steam bị chặn tại Việt Nam:**
+   - Tích hợp **Cloudflare WARP** (`cloudflare-warp-bin` & dịch vụ nền `warp-svc.service`).
+   - Cài đặt plugin **DeckyWARP** cho phép bật/tắt WARP trực tiếp trong Gaming Mode.
+   - Tự động cấu hình DNS dự phòng chuẩn (`1.1.1.1` & `8.8.8.8`) để loại bỏ hoàn toàn lỗi **"CONTENT SERVERS UNREACHABLE"** hay **"CONTENT UNAVAILABLE"** khi tải game và cập nhật Proton/Runtime.
+
+3. **Bộ gõ Tiếng Việt Unikey (Fcitx5):**
+   - Tự động cài đặt đầy đủ bộ gói `fcitx5`, `fcitx5-unikey`, `fcitx5-gtk`, `fcitx5-qt`, `fcitx5-configtool`.
+   - Cấu hình sẵn biến môi trường (`GTK_IM_MODULE`, `QT_IM_MODULE`, `XMODIFIERS`) và file profile mặc định nạp sẵn Unikey + Keyboard US.
+   - Tự động khởi động cùng hệ thống khi vào Desktop Mode.
+
+4. **Trình duyệt & Bộ công cụ phát triển hiện đại:**
+   - **Brave Browser:** Cài đặt trực tiếp qua trình cài đặt chính thức (`curl -fsS https://dl.brave.com/install.sh | FLAVOR=origin sh`).
+   - **Google Antigravity CLI (`agy`):** Cài đặt tự động và tích hợp sẵn đường dẫn `$PATH` vào `~/.bashrc` / `~/.zshrc`.
+   - **Homebrew:** Tự động cài đặt hoặc cập nhật phiên bản mới nhất từ `HEAD` không cần can thiệp, kèm tiện ích hiển thị cấu hình `fastfetch`.
+   - **Visual Studio Code & Microsoft Edge:** Cài đặt từ Flathub kèm cấu hình lưu mật khẩu mã hóa KWallet (thay thế thiết lập `password-store=basic` không bảo mật).
+
+5. **Cơ chế an toàn cho phân vùng hệ điều hành SteamOS:**
+   - Tự động ghi nhớ và khôi phục trạng thái `steamos-readonly` (chế độ bảo vệ phân vùng gốc của SteamOS).
+   - Tự động sao lưu cấu hình cũ trước khi ghi đè, cơ chế rollback an toàn nếu quá trình tải hoặc cài đặt gặp sự cố.
+
+---
+
+## Cấu trúc thư mục
+
+```text
+iSteamOS/
+├── install.sh                     # Trình cài đặt chính hợp nhất (kèm menu tương tác)
+├── install_isteamos.sh            # Alias tương thích ngược trỏ về install.sh
+├── README.md                      # Tài liệu hướng dẫn sử dụng
+├── patches/
+│   └── simple_decky_tdp/
+│       └── plugin_update.py       # Patch an toàn cho SimpleDeckyTDP OTA updater
+└── scripts/
+    ├── install_decky_components.sh # Cài Decky Loader, SimpleDeckyTDP (Ryzen Z1) & DeckyWARP
+    ├── fix_steam_vietnam.sh       # Bật Cloudflare WARP & sửa DNS Steam tại Việt Nam
+    ├── setup_unikey.sh            # Cài đặt và cấu hình Fcitx5 + Unikey tiếng Việt
+    └── setup_tools.sh             # Cài Brave Browser, Google Antigravity, Brew & Flatpaks
+```
+
+---
+
+## Hướng dẫn cài đặt
+
+Chuyển ROG Ally sang **Desktop Mode**, mở ứng dụng **Konsole** (Terminal) và chạy:
 
 ```bash
 git clone https://github.com/LamPPKK/iSteamOS.git
 cd iSteamOS
-./install_isteamos.sh
+./install.sh
 ```
 
-Không chạy script bằng `sudo`. Script sẽ tự yêu cầu quyền quản trị ở những bước cần thiết.
+*(Hoặc chạy `./install_isteamos.sh`)*
 
-Sau khi hoàn tất, khởi động lại máy.
+Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần cài đặt:
 
-## Script sẽ làm gì
+```text
+===================================================================
+     iSteamOS - ASUS ROG Ally Z1 SteamOS Setup & Addon Suite
+===================================================================
+  [1] Full Installation (All-in-One - Khuyên dùng)
+      • Dev Mode, Base Packages, Brave Browser, Homebrew & Fastfetch
+      • Google Antigravity CLI, VS Code & Edge (kèm KWallet)
+      • Bộ gõ Tiếng Việt Fcitx5-Unikey (Cấu hình sẵn)
+      • Decky Loader + SimpleDeckyTDP (Ryzen Z1) + DeckyWARP
+      • Cloudflare WARP & Sửa lỗi Steam bị chặn tại VN
 
-- Ghi nhớ trạng thái readonly hiện tại, tạm tắt khi cần và khôi phục trước khi thoát, kể cả khi gặp lỗi.
-- Bật SteamOS developer mode và khởi tạo môi trường phát triển.
-- Cập nhật đầy đủ gói hệ thống bằng `pacman -Syu` và cài các dependency cần thiết.
-- Cài hoặc cập nhật Homebrew, cấu hình `brew shellenv` cho shell người dùng và cài `fastfetch`.
-- Cài hoặc cập nhật Visual Studio Code và Microsoft Edge từ Flathub.
-- Bổ sung KWallet, KWalletManager, `kwallet-pam`/Secret Service và cấu hình VS Code cùng Microsoft Edge dùng kho mật khẩu mã hóa thay cho `password-store=basic`.
-- Cài Fcitx5 cùng bộ gõ tiếng Việt Unikey và bật Fcitx5 khi đăng nhập.
-- Cài Decky Loader v3.3.1, SimpleDeckyTDP v1.0.7 và DeckyWARP v1.6.1 từ fork được duy trì tại `LamPPKK/DeckyWARP`.
+  [2] Fix Steam in Vietnam (Cloudflare WARP & DNS Fix)
+      • Sửa DNS fallback (1.1.1.1 / 8.8.8.8)
+      • Bật và kết nối Cloudflare WARP tự động
+      • Sửa lỗi "Content Servers Unreachable" khi tải game Steam
 
-Homebrew bootstrap entrypoint được ghim theo commit và SHA-256. Với các thành phần Decky, binary, service file, archive và installer đều được ghim theo phiên bản/commit và kiểm tra SHA-256 trước khi dùng. Decky Loader và SimpleDeckyTDP được cài qua staging có rollback, không xóa bản đang hoạt động trước khi tải và kiểm tra bản mới.
+  [3] Install Vietnamese IME (Fcitx5 + Unikey Only)
+      • Cài gói, cấu hình autostart, environment và profile Unikey
 
-## Những thay đổi so với bản cũ
+  [4] Install Decky Components & TDP Control
+      • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 (Ryzen Z1) + DeckyWARP
 
-- `neofetch` được thay bằng `fastfetch` vì công thức Homebrew của `neofetch` không còn tồn tại.
-- DeckyWARP được chuyển sang fork `LamPPKK/DeckyWARP`, dùng API Decky hiện hành, Cloudflare WARP 2026.6.880-1 và không thêm Chaotic-AUR vào `pacman.conf`.
-- Không còn chạy trực tiếp installer Decky/SimpleDeckyTDP có tải lồng từ `latest`; script ghim và kiểm tra chính payload được cài, đồng thời phục hồi bản cũ nếu cài hoặc restart dịch vụ thất bại.
-- Trình cập nhật OTA không xác minh TLS/checksum của SimpleDeckyTDP v1.0.7 bị vô hiệu hóa ở cả backend và kiểm tra phiên bản; hãy chạy lại iSteamOS khi muốn nâng plugin này bằng payload đã xác minh.
-- Không còn tạo `GAMESCOPE_FORCE_HDR=0` vì đây không phải thiết lập Gamescope hiện hành được hỗ trợ.
-- Nếu script tìm thấy đúng file Gamescope cũ do phiên bản trước tạo, file đó sẽ được đổi tên thành bản sao lưu thay vì bị xóa.
-- Không xóa cache Gamescope.
+  [5] Install Browsers & Developer Tools Only
+      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code & Edge
 
-## Sau khi khởi động lại
-
-Mở **Fcitx5 Configuration**, thêm **Unikey**, rồi kiểm tra:
-
-```bash
-fastfetch
-fcitx5-remote
-flatpak list
+  [0] Exit
+===================================================================
 ```
 
-Trong Gaming Mode, kiểm tra Decky Loader, SimpleDeckyTDP và DeckyWARP từ menu Quick Access. Lần đầu mở DeckyWARP, chọn **Install Cloudflare WARP**; plugin cũng có nút **Update / repair Cloudflare WARP**.
+> [!TIP]
+> Bạn cũng có thể truyền cờ lệnh trực tiếp nếu không muốn chọn menu:
+> * `./install.sh --all` : Chạy cài đặt trọn gói tất cả.
+> * `./install.sh --steam-fix` : Chỉ sửa lỗi Steam bị chặn tại Việt Nam.
+> * `./install.sh --unikey` : Chỉ cài bộ gõ tiếng Việt Unikey.
+> * `./install.sh --decky` : Chỉ cài Decky Loader & SimpleDeckyTDP.
+> * `./install.sh --tools` : Chỉ cài Brave, Antigravity, Brew & Flatpaks.
 
-Lần đầu VS Code hoặc Edge cần lưu thông tin đăng nhập, mở **KWalletManager** trong Desktop Mode và tạo/mở ví mặc định `kdewallet`. Nên dùng mật khẩu đăng nhập SteamOS cho ví nếu muốn `kwallet-pam` có thể tự mở ví trong phiên đăng nhập có nhập mật khẩu. SteamOS thường tự đăng nhập, nên sau khi khởi động lại KWallet vẫn có thể hỏi mật khẩu ví một lần; script không tự sửa PAM hoặc đặt mật khẩu ví thay bạn. Sau khi chuyển khỏi `basic`, ứng dụng có thể yêu cầu đăng nhập lại một lần để lưu credential mới vào ví mã hóa.
+> [!IMPORTANT]
+> **Không** chạy script bằng lệnh `sudo ./install.sh`. Script được thiết kế để chạy với quyền user `deck` bình thường và sẽ tự yêu cầu mật khẩu `sudo` ở những bước cần thiết.
+> Sau khi cài đặt hoàn tất, hãy khởi động lại máy.
 
-## Lưu ý
+---
 
-- Các gói cài trực tiếp bằng `pacman` có thể bị SteamOS thay thế sau một bản cập nhật hệ điều hành lớn; khi đó hãy chạy lại script.
-- Cloudflare không hỗ trợ SteamOS/Arch chính thức. DeckyWARP đóng gói binary Ubuntu chính thức bằng recipe được ghim từ AUR, vì vậy nên kiểm tra kết nối thực tế sau khi cài.
-- Visual Studio Code và Microsoft Edge trên Flathub là các gói do cộng đồng đóng gói, không phải bản Flatpak được Microsoft hỗ trợ chính thức.
-- Script đặt `password-store=kwallet5` cho VS Code theo hướng dẫn tương thích KDE 6 của Microsoft; Edge dùng `kwallet6` khi daemon mới có sẵn và quay về `kwallet5` trên KDE cũ. Quyền D-Bus được giới hạn cho dịch vụ KWallet/Secret Service, và script giữ lại bản sao lưu trước khi thay đổi cấu hình hiện có.
-- Nếu `~/.vscode/argv.json` có comment hoặc JSON không hợp lệ, script giữ nguyên file và hướng dẫn thêm `"password-store": "kwallet5"` thủ công để tránh làm mất cấu hình.
-- Khi nâng phiên bản Homebrew installer hoặc các pin trong `scripts/install_decky_components.sh`, phải cập nhật đồng thời checksum SHA-256 tương ứng.
+## Thiết lập tối ưu sau khi cài đặt
+
+1. **Điều khiển TDP trong Gaming Mode:**
+   - Nhấn nút **Command Center** hoặc phím tắt mở menu Quick Access (`...`) của SteamOS.
+   - Tìm mục **SimpleDeckyTDP** để tùy chỉnh mức tiêu thụ điện (ví dụ: 15W cân bằng, 25W-30W khi cắm sạc cho Z1 Extreme).
+2. **Tối ưu tải game Steam không bị nghẽn mạng:**
+   - Trong ứng dụng Steam: Vào **Settings** $\rightarrow$ **Downloads**.
+   - Chuyển **Download Region** sang **Singapore** hoặc **Hong Kong**.
+   - Tắt tùy chọn **Game file transfer over local network** nếu mạng không ổn định.
+3. **Mở kho mật khẩu KWallet (Lần đầu mở VS Code / Edge):**
+   - Trong Desktop Mode, mở **KWalletManager** và tạo/mở ví mặc định `kdewallet` (khuyến khích đặt trùng mật khẩu đăng nhập `deck`).
+4. **Kiểm tra công cụ trong Terminal:**
+   ```bash
+   fastfetch
+   agy --version
+   warp-cli status
+   ```
+
+---
 
 ## License
 

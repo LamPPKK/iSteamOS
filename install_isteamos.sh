@@ -7,8 +7,8 @@ temp_dir=""
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 
-readonly HOMEBREW_INSTALL_COMMIT="8c82c081753d4263da0cfe615ef8d9433425f22b"
-readonly HOMEBREW_INSTALL_SHA256="5f333bbe53bc490e51e7ccb1df8779b3dd6ee73a1a7379efda216edb08ccb148"
+LOG_FILE="/tmp/isteamos_install.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
 
 log() {
     printf '\n=== %s ===\n' "$*"
@@ -68,140 +68,124 @@ disable_readonly_if_needed() {
     fi
 }
 
-download_script() {
-    local url=$1
-    local destination=$2
-    local expected_sha256=$3
-    local checksum_output
-    local actual_sha256
+setup_base_system() {
+    log "Enabling SteamOS developer mode"
+    sudo steamos-devmode enable --no-prompt
 
-    curl \
-        --fail \
-        --show-error \
-        --silent \
-        --location \
-        --proto '=https' \
-        --tlsv1.2 \
-        --retry 3 \
-        --output "$destination" \
-        "$url"
-
-    [[ -s "$destination" ]] || die "Downloaded script is empty: $url"
-    head -n 1 "$destination" | grep -q '^#!' || die "Downloaded file is not a script: $url"
-
-    checksum_output="$(sha256sum "$destination")"
-    actual_sha256="${checksum_output%% *}"
-    [[ "$actual_sha256" == "$expected_sha256" ]] || \
-        die "Checksum mismatch for $url (expected $expected_sha256, got $actual_sha256)"
-}
-
-install_config() {
-    local destination=$1
-    local staged_file
-    local backup_file
-
-    staged_file="$temp_dir/$(basename "$destination").new"
-
-    cat > "$staged_file"
-    mkdir -p "$(dirname "$destination")"
-
-    if [[ -f "$destination" ]] && cmp -s "$staged_file" "$destination"; then
-        return
+    if command -v steamos-unminimize >/dev/null 2>&1; then
+        log "Restoring development files removed from the SteamOS image"
+        sudo steamos-unminimize --dev --noconfirm
     fi
 
-    if [[ -e "$destination" ]]; then
-        backup_file="${destination}.bak.$(date +%Y%m%d-%H%M%S)"
-        cp -a -- "$destination" "$backup_file"
-        printf 'Backed up %s to %s\n' "$destination" "$backup_file"
-    fi
-
-    install -m 0644 "$staged_file" "$destination"
+    log "Updating system packages and installing prerequisites"
+    sudo pacman -Syu --needed --noconfirm \
+        base-devel \
+        procps-ng \
+        curl \
+        file \
+        git \
+        jq \
+        7zip \
+        unzip \
+        fcitx5 \
+        fcitx5-configtool \
+        fcitx5-gtk \
+        fcitx5-qt \
+        fcitx5-unikey \
+        kwallet \
+        kwallet-pam \
+        kwalletmanager \
+        libsecret
 }
 
-install_or_update_flatpak() {
-    local app_id=$1
+setup_tools() {
+    local helper="$SCRIPT_DIR/scripts/setup_tools.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper"
+}
 
-    if flatpak --user info "$app_id" >/dev/null 2>&1; then
-        flatpak --user update -y "$app_id"
-    elif flatpak --system info "$app_id" >/dev/null 2>&1; then
-        sudo flatpak --system update -y "$app_id"
-    else
-        flatpak --user remote-add --if-not-exists \
-            flathub \
-            https://flathub.org/repo/flathub.flatpakrepo
-        flatpak --user install -y flathub "$app_id"
+setup_fcitx5_unikey() {
+    local helper="$SCRIPT_DIR/scripts/setup_unikey.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper"
+}
+
+setup_decky_components() {
+    local helper="$SCRIPT_DIR/scripts/install_decky_components.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper"
+
+    local gamescope_config="$HOME/.config/environment.d/gamescope.conf"
+    local legacy_gamescope_config="$temp_dir/gamescope.conf.legacy"
+    printf 'GAMESCOPE_FORCE_HDR=0\n' > "$legacy_gamescope_config"
+    if [[ -f "$gamescope_config" ]] && cmp -s "$gamescope_config" "$legacy_gamescope_config"; then
+        local gamescope_backup="${gamescope_config}.bak.$(date +%Y%m%d-%H%M%S)"
+        mv -- "$gamescope_config" "$gamescope_backup"
+        printf 'Moved unsupported legacy Gamescope setting to %s\n' "$gamescope_backup"
     fi
 }
 
-configure_vscode_password_store() {
-    local argv_file="$HOME/.vscode/argv.json"
-    local updated_file="$temp_dir/vscode-argv.json"
-
-    mkdir -p "$(dirname "$argv_file")"
-
-    if [[ ! -e "$argv_file" ]]; then
-        install_config "$argv_file" <<'EOF'
-{
-  "password-store": "kwallet5"
+setup_cloudflare_warp_and_dns() {
+    local helper="$SCRIPT_DIR/scripts/fix_steam_vietnam.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper"
 }
+
+run_full_installation() {
+    log "STARTING FULL INSTALLATION (ASUS ROG ALLY Z1 - ALL-IN-ONE)"
+    disable_readonly_if_needed
+    setup_base_system
+    restore_readonly
+
+    setup_tools
+    setup_fcitx5_unikey
+    setup_decky_components
+    setup_cloudflare_warp_and_dns
+
+    log "FULL INSTALLATION COMPLETED"
+    printf '%s\n' \
+        "Please reboot the system, and open KWalletManager once to create or unlock kdewallet." \
+        "Fcitx5 Unikey, Decky Loader, SimpleDeckyTDP, and Cloudflare WARP are preconfigured."
+}
+
+show_menu() {
+    clear 2>/dev/null || true
+    cat <<'EOF'
+===================================================================
+     iSteamOS - ASUS ROG Ally Z1 SteamOS Setup & Addon Suite
+===================================================================
+  [1] Full Installation (All-in-One - Recommended)
+      • Dev Mode, Base Packages, Brave Browser, Homebrew & Fastfetch
+      • Google Antigravity CLI, VS Code & Edge (with KWallet)
+      • Fcitx5-Unikey Vietnamese Input (Preconfigured)
+      • Decky Loader + SimpleDeckyTDP (Ryzen Z1) + DeckyWARP
+      • Cloudflare WARP & DNS Fix (Bypass Vietnam Steam Block)
+
+  [2] Fix Steam in Vietnam (Cloudflare WARP & DNS Fix)
+      • Set fallback DNS to 1.1.1.1 / 8.8.8.8
+      • Enable, register & connect Cloudflare WARP
+      • Fix "Content Servers Unreachable" error in Steam
+
+  [3] Install Vietnamese IME (Fcitx5 + Unikey Only)
+      • Install packages, configure autostart, environment & profile
+
+  [4] Install Decky Components & TDP Control
+      • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 (Ryzen Z1) + DeckyWARP
+
+  [5] Install Browsers & Developer Tools Only
+      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code & Edge
+
+  [0] Exit
+===================================================================
 EOF
-    elif jq -e 'type == "object"' "$argv_file" >/dev/null 2>&1; then
-        jq '. + {"password-store": "kwallet5"}' "$argv_file" > "$updated_file"
-        install_config "$argv_file" < "$updated_file"
-    else
-        printf '%s\n' \
-            "WARNING: $argv_file contains JSON with comments or invalid JSON; leaving it unchanged." \
-            'Open VS Code and run "Preferences: Configure Runtime Arguments", then add "password-store": "kwallet5" manually.' >&2
-    fi
+    printf 'Please enter your choice [0-5]: '
 }
 
-configure_edge_password_store() {
-    local flags_file="$HOME/.var/app/com.microsoft.Edge/config/edge-flags.conf"
-    local updated_file="$temp_dir/edge-flags.conf"
-    local password_store=kwallet5
-
-    if command -v kwalletd6 >/dev/null 2>&1; then
-        password_store=kwallet6
-    fi
-
-    if [[ -L "$flags_file" || ( -e "$flags_file" && ! -f "$flags_file" ) ]]; then
-        printf 'WARNING: Refusing to replace non-regular Edge flags file: %s\n' "$flags_file" >&2
-        return
-    fi
-
-    if [[ -f "$flags_file" ]]; then
-        awk -v password_store="$password_store" '
-            BEGIN { password_store_written = 0 }
-            /^[[:space:]]*--password-store(=|[[:space:]])/ {
-                if (!password_store_written) {
-                    print "--password-store=" password_store
-                    password_store_written = 1
-                }
-                next
-            }
-            { print }
-            END {
-                if (!password_store_written) {
-                    print "--password-store=" password_store
-                }
-            }
-        ' "$flags_file" > "$updated_file"
-    else
-        printf '%s\n' "--password-store=$password_store" > "$updated_file"
-    fi
-
-    install_config "$flags_file" < "$updated_file"
-}
-
-configure_flatpak_keyring_access() {
-    local app_id=$1
-
-    flatpak override --user \
-        --talk-name=org.kde.kwalletd5 \
-        --talk-name=org.kde.kwalletd6 \
-        --talk-name=org.freedesktop.secrets \
-        "$app_id"
-}
+# --- Main Entrypoint ---
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    printf 'Usage: %s [--all | --steam-fix | --unikey | --decky | --tools]\n' "$(basename "$0")"
+    exit 0
+fi
 
 (( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
 
@@ -212,133 +196,54 @@ done
 sudo -v
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/isteamos.XXXXXX")"
 
-log "SteamOS post-install/update"
+action="${1:-}"
 
-disable_readonly_if_needed
-
-log "Enabling SteamOS developer mode"
-sudo steamos-devmode enable --no-prompt
-
-if command -v steamos-unminimize >/dev/null 2>&1; then
-    log "Restoring development files removed from the SteamOS image"
-    sudo steamos-unminimize --dev --noconfirm
+if [[ -z "$action" ]]; then
+    show_menu
+    read -r choice
+    case "$choice" in
+        1) action="--all" ;;
+        2) action="--steam-fix" ;;
+        3) action="--unikey" ;;
+        4) action="--decky" ;;
+        5) action="--tools" ;;
+        0|q|Q)
+            printf '\nExiting without changes.\n'
+            exit 0
+            ;;
+        *)
+            printf '\nInvalid choice: %s\n' "$choice" >&2
+            exit 1
+            ;;
+    esac
 fi
 
-log "Updating system packages and installing prerequisites"
-# Use a full upgrade to avoid the unsupported partial-upgrade state caused by pacman -Sy.
-sudo pacman -Syu --needed --noconfirm \
-    base-devel \
-    procps-ng \
-    curl \
-    file \
-    git \
-    jq \
-    7zip \
-    unzip \
-    fcitx5 \
-    fcitx5-configtool \
-    fcitx5-gtk \
-    fcitx5-qt \
-    fcitx5-unikey \
-    kwallet \
-    kwallet-pam \
-    kwalletmanager \
-    libsecret
-
-require_command jq
-require_command 7z
-require_command unzip
-require_command awk
-
-# Homebrew, user Flatpaks and desktop configuration do not need a writable OS
-# image. Restore it before the slower network operations below.
-restore_readonly
-
-log "Installing or updating Homebrew"
-brew_bin="$(command -v brew || true)"
-if [[ -z "$brew_bin" ]]; then
-    homebrew_installer="$temp_dir/homebrew-install.sh"
-    download_script \
-        "https://raw.githubusercontent.com/Homebrew/install/${HOMEBREW_INSTALL_COMMIT}/install.sh" \
-        "$homebrew_installer" \
-        "$HOMEBREW_INSTALL_SHA256"
-    NONINTERACTIVE=1 /bin/bash "$homebrew_installer"
-
-    for candidate in /home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew"; do
-        if [[ -x "$candidate" ]]; then
-            brew_bin=$candidate
-            break
-        fi
-    done
-fi
-
-[[ -n "$brew_bin" && -x "$brew_bin" ]] || die "Homebrew was installed but brew could not be found."
-eval "$("$brew_bin" shellenv)"
-
-case "${SHELL:-/bin/bash}" in
-    */zsh) shell_rc="$HOME/.zshrc" ;;
-    *)     shell_rc="$HOME/.bashrc" ;;
+case "$action" in
+    --all|-1)
+        run_full_installation
+        ;;
+    --steam-fix|--warp|-2)
+        setup_cloudflare_warp_and_dns
+        ;;
+    --unikey|-3)
+        setup_fcitx5_unikey
+        ;;
+    --decky|-4)
+        setup_decky_components
+        ;;
+    --tools|--apps|-5)
+        setup_tools
+        ;;
+    --help|-h)
+        printf 'Usage: %s [--all | --steam-fix | --unikey | --decky | --tools]\n' "$(basename "$0")"
+        exit 0
+        ;;
+    *)
+        printf 'Unknown option: %s\n' "$action" >&2
+        printf 'Usage: %s [--all | --steam-fix | --unikey | --decky | --tools]\n' "$(basename "$0")"
+        exit 1
+        ;;
 esac
 
-brew_shellenv_line="eval \"\$($brew_bin shellenv)\""
-touch "$shell_rc"
-if ! grep -Fqx "$brew_shellenv_line" "$shell_rc"; then
-    printf '\n%s\n' "$brew_shellenv_line" >> "$shell_rc"
-fi
-
-brew update
-if brew list --formula fastfetch >/dev/null 2>&1; then
-    brew upgrade fastfetch
-else
-    brew install fastfetch
-fi
-
-log "Installing or updating Flatpak applications"
-install_or_update_flatpak com.visualstudio.code
-install_or_update_flatpak com.microsoft.Edge
-
-log "Configuring encrypted KWallet credential storage"
-configure_vscode_password_store
-configure_edge_password_store
-configure_flatpak_keyring_access com.visualstudio.code
-configure_flatpak_keyring_access com.microsoft.Edge
-
-log "Configuring Fcitx5 and Unikey"
-install_config "$HOME/.config/environment.d/fcitx5.conf" <<'EOF'
-GTK_IM_MODULE=fcitx
-QT_IM_MODULE=fcitx
-XMODIFIERS=@im=fcitx
-EOF
-
-mkdir -p "$HOME/.config/autostart"
-fcitx_autostart="$HOME/.config/autostart/org.fcitx.Fcitx5.desktop"
-if [[ ! -e "$fcitx_autostart" && ! -L "$fcitx_autostart" ]]; then
-    install -m 0644 \
-        /usr/share/applications/org.fcitx.Fcitx5.desktop \
-        "$fcitx_autostart"
-else
-    printf 'Preserving existing Fcitx5 autostart configuration: %s\n' "$fcitx_autostart"
-fi
-
-log "Installing verified Decky components"
-decky_components_installer="$SCRIPT_DIR/scripts/install_decky_components.sh"
-[[ -x "$decky_components_installer" ]] || \
-    die "Missing executable helper: $decky_components_installer"
-"$decky_components_installer"
-
-# GAMESCOPE_FORCE_HDR is not a supported current Gamescope setting. Preserve any
-# custom configuration, but move aside the exact legacy file created by old versions.
-gamescope_config="$HOME/.config/environment.d/gamescope.conf"
-legacy_gamescope_config="$temp_dir/gamescope.conf.legacy"
-printf 'GAMESCOPE_FORCE_HDR=0\n' > "$legacy_gamescope_config"
-if [[ -f "$gamescope_config" ]] && cmp -s "$gamescope_config" "$legacy_gamescope_config"; then
-    gamescope_backup="${gamescope_config}.bak.$(date +%Y%m%d-%H%M%S)"
-    mv -- "$gamescope_config" "$gamescope_backup"
-    printf 'Moved unsupported legacy Gamescope setting to %s\n' "$gamescope_backup"
-fi
-
-restore_readonly
-
-log "DONE"
-printf '%s\n' \
-    "Please reboot the system, open KWalletManager once to create or unlock kdewallet, then open Fcitx5 Configuration and select Unikey."
+printf '\nOperation finished successfully. Press Enter to close...\n'
+read -r
