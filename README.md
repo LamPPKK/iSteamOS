@@ -93,11 +93,12 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
 
 > [!TIP]
 > Bạn cũng có thể truyền cờ lệnh trực tiếp nếu không muốn chọn menu:
-> * `./install_isteamos.sh --all` : Chạy cài đặt trọn gói tất cả.
-> * `./install_isteamos.sh --steam-fix` : Chỉ sửa lỗi Steam bị chặn tại Việt Nam.
-> * `./install_isteamos.sh --unikey` : Chỉ cài bộ gõ tiếng Việt Unikey.
-> * `./install_isteamos.sh --decky` : Chỉ cài Decky Loader & SimpleDeckyTDP.
-> * `./install_isteamos.sh --tools` : Chỉ cài Brave, Antigravity, Brew, Flatpaks & GitHub Desktop.
+>
+> - `./install_isteamos.sh --all` : Chạy cài đặt trọn gói tất cả.
+> - `./install_isteamos.sh --steam-fix` : Chỉ sửa lỗi Steam bị chặn tại Việt Nam.
+> - `./install_isteamos.sh --unikey` : Chỉ cài bộ gõ tiếng Việt Unikey.
+> - `./install_isteamos.sh --decky` : Chỉ cài Decky Loader & SimpleDeckyTDP.
+> - `./install_isteamos.sh --tools` : Chỉ cài Brave, Antigravity, Brew, Flatpaks & GitHub Desktop.
 
 > [!IMPORTANT]
 > **Không** chạy script bằng lệnh `sudo ./install_isteamos.sh`. Script được thiết kế để chạy với quyền user `deck` bình thường và sẽ tự yêu cầu mật khẩu `sudo` ở những bước cần thiết.
@@ -117,6 +118,7 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
 3. **Mở kho mật khẩu KWallet (Lần đầu mở VS Code / Edge):**
    - Trong Desktop Mode, mở **KWalletManager** và tạo/mở ví mặc định `kdewallet` (khuyến khích đặt trùng mật khẩu đăng nhập `deck`).
 4. **Kiểm tra công cụ trong Terminal:**
+
    ```bash
    fastfetch
    agy --version
@@ -126,5 +128,3 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
 ---
 
 ## License
-
-MIT – Use at your own risk.
