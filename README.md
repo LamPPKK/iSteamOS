@@ -1,12 +1,12 @@
-# iSteamOS – Bộ Cập Nhật Bổ Sung Cho ASUS ROG Ally Z1 (SteamOS)
+# SteamOS Post Install – All in One
 
-Bộ script cài đặt và cập nhật môi trường bổ sung toàn diện dành cho anh em sử dụng **SteamOS** trên máy chơi game cầm tay **ASUS ROG Ally Z1 / Z1 Extreme** (cũng như Steam Deck và các dòng handheld PC x86_64 khác).
+Bộ script cài đặt và cập nhật môi trường bổ sung toàn diện dành cho anh em sử dụng **SteamOS** trên máy chơi game cầm tay như **ASUS ROG Ally Z1 / Z1 Extreme**, **Steam Deck** và các dòng handheld PC x86_64 khác.
 
 ---
 
-## Tính năng nổi bật cho ASUS ROG Ally Z1
+## Tính năng nổi bật
 
-1. **Quản lý công suất TDP & Xung nhịp cho AMD Ryzen Z1 / Z1 Extreme:**
+1. **Quản lý công suất TDP & Xung nhịp cho AMD Ryzen Z1 / Z1 Extreme & Handhelds:**
    - Cài sẵn **Decky Loader v3.3.1** và plugin **SimpleDeckyTDP v1.0.7** với backend `ryzenadj` đã được vá mã an toàn (có hash SHA-256 xác thực).
    - Cho phép anh em chỉnh trực tiếp công suất TDP (W), xung CPU/GPU, giới hạn nhiệt độ ngay trong menu Quick Access (`...`) ở Gaming Mode của SteamOS.
 
@@ -24,7 +24,7 @@ Bộ script cài đặt và cập nhật môi trường bổ sung toàn diện d
    - **Brave Browser:** Cài đặt trực tiếp qua trình cài đặt chính thức (`curl -fsS https://dl.brave.com/install.sh | FLAVOR=origin sh`).
    - **Google Antigravity CLI (`agy`):** Cài đặt tự động và tích hợp sẵn đường dẫn `$PATH` vào `~/.bashrc` / `~/.zshrc`.
    - **Homebrew:** Tự động cài đặt hoặc cập nhật phiên bản mới nhất từ `HEAD` không cần can thiệp, kèm tiện ích hiển thị cấu hình `fastfetch`.
-   - **Visual Studio Code & Microsoft Edge:** Cài đặt từ Flathub kèm cấu hình lưu mật khẩu mã hóa KWallet (thay thế thiết lập `password-store=basic` không bảo mật).
+   - **Visual Studio Code, Microsoft Edge & GitHub Desktop:** Cài đặt từ Flathub kèm cấu hình lưu mật khẩu mã hóa KWallet (thay thế thiết lập `password-store=basic` không bảo mật).
 
 5. **Cơ chế an toàn cho phân vùng hệ điều hành SteamOS:**
    - Tự động ghi nhớ và khôi phục trạng thái `steamos-readonly` (chế độ bảo vệ phân vùng gốc của SteamOS).
@@ -36,8 +36,7 @@ Bộ script cài đặt và cập nhật môi trường bổ sung toàn diện d
 
 ```text
 iSteamOS/
-├── install.sh                     # Trình cài đặt chính hợp nhất (kèm menu tương tác)
-├── install_isteamos.sh            # Alias tương thích ngược trỏ về install.sh
+├── install_isteamos.sh            # Trình cài đặt chính duy nhất (kèm menu tương tác)
 ├── README.md                      # Tài liệu hướng dẫn sử dụng
 ├── patches/
 │   └── simple_decky_tdp/
@@ -46,34 +45,32 @@ iSteamOS/
     ├── install_decky_components.sh # Cài Decky Loader, SimpleDeckyTDP (Ryzen Z1) & DeckyWARP
     ├── fix_steam_vietnam.sh       # Bật Cloudflare WARP & sửa DNS Steam tại Việt Nam
     ├── setup_unikey.sh            # Cài đặt và cấu hình Fcitx5 + Unikey tiếng Việt
-    └── setup_tools.sh             # Cài Brave Browser, Google Antigravity, Brew & Flatpaks
+    └── setup_tools.sh             # Cài Brave, Google Antigravity, Brew, VS Code, Edge & GitHub Desktop
 ```
 
 ---
 
 ## Hướng dẫn cài đặt
 
-Chuyển ROG Ally sang **Desktop Mode**, mở ứng dụng **Konsole** (Terminal) và chạy:
+Chuyển máy sang **Desktop Mode**, mở ứng dụng **Konsole** (Terminal) và chạy:
 
 ```bash
 git clone https://github.com/LamPPKK/iSteamOS.git
 cd iSteamOS
-./install.sh
+./install_isteamos.sh
 ```
-
-*(Hoặc chạy `./install_isteamos.sh`)*
 
 Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần cài đặt:
 
 ```text
 ===================================================================
-     iSteamOS - ASUS ROG Ally Z1 SteamOS Setup & Addon Suite
+                 SteamOS Post Install – All in One
 ===================================================================
   [1] Full Installation (All-in-One - Khuyên dùng)
       • Dev Mode, Base Packages, Brave Browser, Homebrew & Fastfetch
-      • Google Antigravity CLI, VS Code & Edge (kèm KWallet)
+      • Google Antigravity CLI, VS Code, Edge & GitHub Desktop (kèm KWallet)
       • Bộ gõ Tiếng Việt Fcitx5-Unikey (Cấu hình sẵn)
-      • Decky Loader + SimpleDeckyTDP (Ryzen Z1) + DeckyWARP
+      • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
       • Cloudflare WARP & Sửa lỗi Steam bị chặn tại VN
 
   [2] Fix Steam in Vietnam (Cloudflare WARP & DNS Fix)
@@ -85,10 +82,10 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
       • Cài gói, cấu hình autostart, environment và profile Unikey
 
   [4] Install Decky Components & TDP Control
-      • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 (Ryzen Z1) + DeckyWARP
+      • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
   [5] Install Browsers & Developer Tools Only
-      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code & Edge
+      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code, Edge & GitHub Desktop
 
   [0] Exit
 ===================================================================
@@ -96,14 +93,14 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
 
 > [!TIP]
 > Bạn cũng có thể truyền cờ lệnh trực tiếp nếu không muốn chọn menu:
-> * `./install.sh --all` : Chạy cài đặt trọn gói tất cả.
-> * `./install.sh --steam-fix` : Chỉ sửa lỗi Steam bị chặn tại Việt Nam.
-> * `./install.sh --unikey` : Chỉ cài bộ gõ tiếng Việt Unikey.
-> * `./install.sh --decky` : Chỉ cài Decky Loader & SimpleDeckyTDP.
-> * `./install.sh --tools` : Chỉ cài Brave, Antigravity, Brew & Flatpaks.
+> * `./install_isteamos.sh --all` : Chạy cài đặt trọn gói tất cả.
+> * `./install_isteamos.sh --steam-fix` : Chỉ sửa lỗi Steam bị chặn tại Việt Nam.
+> * `./install_isteamos.sh --unikey` : Chỉ cài bộ gõ tiếng Việt Unikey.
+> * `./install_isteamos.sh --decky` : Chỉ cài Decky Loader & SimpleDeckyTDP.
+> * `./install_isteamos.sh --tools` : Chỉ cài Brave, Antigravity, Brew, Flatpaks & GitHub Desktop.
 
 > [!IMPORTANT]
-> **Không** chạy script bằng lệnh `sudo ./install.sh`. Script được thiết kế để chạy với quyền user `deck` bình thường và sẽ tự yêu cầu mật khẩu `sudo` ở những bước cần thiết.
+> **Không** chạy script bằng lệnh `sudo ./install_isteamos.sh`. Script được thiết kế để chạy với quyền user `deck` bình thường và sẽ tự yêu cầu mật khẩu `sudo` ở những bước cần thiết.
 > Sau khi cài đặt hoàn tất, hãy khởi động lại máy.
 
 ---

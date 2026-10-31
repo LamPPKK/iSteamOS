@@ -132,7 +132,7 @@ setup_cloudflare_warp_and_dns() {
 }
 
 run_full_installation() {
-    log "STARTING FULL INSTALLATION (ASUS ROG ALLY Z1 - ALL-IN-ONE)"
+    log "STARTING FULL INSTALLATION (SteamOS Post Install – All in One)"
     disable_readonly_if_needed
     setup_base_system
     restore_readonly
@@ -152,13 +152,13 @@ show_menu() {
     clear 2>/dev/null || true
     cat <<'EOF'
 ===================================================================
-     iSteamOS - ASUS ROG Ally Z1 SteamOS Setup & Addon Suite
+                 SteamOS Post Install – All in One
 ===================================================================
   [1] Full Installation (All-in-One - Recommended)
       • Dev Mode, Base Packages, Brave Browser, Homebrew & Fastfetch
-      • Google Antigravity CLI, VS Code & Edge (with KWallet)
+      • Google Antigravity CLI, VS Code, Edge & GitHub Desktop (with KWallet)
       • Fcitx5-Unikey Vietnamese Input (Preconfigured)
-      • Decky Loader + SimpleDeckyTDP (Ryzen Z1) + DeckyWARP
+      • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
       • Cloudflare WARP & DNS Fix (Bypass Vietnam Steam Block)
 
   [2] Fix Steam in Vietnam (Cloudflare WARP & DNS Fix)
@@ -170,10 +170,10 @@ show_menu() {
       • Install packages, configure autostart, environment & profile
 
   [4] Install Decky Components & TDP Control
-      • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 (Ryzen Z1) + DeckyWARP
+      • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
   [5] Install Browsers & Developer Tools Only
-      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code & Edge
+      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code, Edge & GitHub Desktop
 
   [0] Exit
 ===================================================================

@@ -86,3 +86,4 @@ printf '\n%s\n' \
     "  3. Retry any failed downloads in your download queue."
 
 log "Cloudflare WARP & DNS Fix applied successfully"
+

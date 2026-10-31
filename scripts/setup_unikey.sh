@@ -13,7 +13,7 @@ die() {
 
 (( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
 
-log "Configuring Fcitx5 and Unikey for ASUS ROG Ally Z1"
+log "Configuring Fcitx5 and Unikey"
 
 # Check if Fcitx5 or Unikey packages are missing
 if ! command -v fcitx5 >/dev/null 2>&1 || ! pacman -Q fcitx5-unikey >/dev/null 2>&1; then
@@ -98,3 +98,4 @@ if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
 fi
 
 log "Fcitx5 and Unikey configuration verified"
+

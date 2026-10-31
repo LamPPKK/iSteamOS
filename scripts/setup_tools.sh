@@ -233,11 +233,14 @@ done
 log "Installing or updating Flatpak applications"
 install_or_update_flatpak com.visualstudio.code
 install_or_update_flatpak com.microsoft.Edge
+install_or_update_flatpak io.github.shiftey.Desktop
 
 log "Configuring encrypted KWallet credential storage"
 configure_vscode_password_store
 configure_edge_password_store
 configure_flatpak_keyring_access com.visualstudio.code
 configure_flatpak_keyring_access com.microsoft.Edge
+configure_flatpak_keyring_access io.github.shiftey.Desktop
 
 log "Browsers & Developer Tools installed successfully"
+
