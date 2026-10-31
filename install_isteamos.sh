@@ -7,8 +7,8 @@ temp_dir=""
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 
-readonly HOMEBREW_INSTALL_COMMIT="cced90146ea6d3057c03a636b668fef177415eb3"
-readonly HOMEBREW_INSTALL_SHA256="12479a24be3f5307eecac7cde670fad7118640f031229e964f544b1367b52a41"
+readonly HOMEBREW_INSTALL_COMMIT="8c82c081753d4263da0cfe615ef8d9433425f22b"
+readonly HOMEBREW_INSTALL_SHA256="5f333bbe53bc490e51e7ccb1df8779b3dd6ee73a1a7379efda216edb08ccb148"
 
 log() {
     printf '\n=== %s ===\n' "$*"

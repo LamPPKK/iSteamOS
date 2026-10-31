@@ -27,7 +27,7 @@ Sau khi hoàn tất, khởi động lại máy.
 - Cài hoặc cập nhật Visual Studio Code và Microsoft Edge từ Flathub.
 - Bổ sung KWallet, KWalletManager, `kwallet-pam`/Secret Service và cấu hình VS Code cùng Microsoft Edge dùng kho mật khẩu mã hóa thay cho `password-store=basic`.
 - Cài Fcitx5 cùng bộ gõ tiếng Việt Unikey và bật Fcitx5 khi đăng nhập.
-- Cài Decky Loader v3.2.6, SimpleDeckyTDP v1.0.5 và DeckyWARP v1.6.1 từ fork được duy trì tại `LamPPKK/DeckyWARP`.
+- Cài Decky Loader v3.3.1, SimpleDeckyTDP v1.0.7 và DeckyWARP v1.6.1 từ fork được duy trì tại `LamPPKK/DeckyWARP`.
 
 Homebrew bootstrap entrypoint được ghim theo commit và SHA-256. Với các thành phần Decky, binary, service file, archive và installer đều được ghim theo phiên bản/commit và kiểm tra SHA-256 trước khi dùng. Decky Loader và SimpleDeckyTDP được cài qua staging có rollback, không xóa bản đang hoạt động trước khi tải và kiểm tra bản mới.
 
@@ -36,7 +36,7 @@ Homebrew bootstrap entrypoint được ghim theo commit và SHA-256. Với các 
 - `neofetch` được thay bằng `fastfetch` vì công thức Homebrew của `neofetch` không còn tồn tại.
 - DeckyWARP được chuyển sang fork `LamPPKK/DeckyWARP`, dùng API Decky hiện hành, Cloudflare WARP 2026.6.880-1 và không thêm Chaotic-AUR vào `pacman.conf`.
 - Không còn chạy trực tiếp installer Decky/SimpleDeckyTDP có tải lồng từ `latest`; script ghim và kiểm tra chính payload được cài, đồng thời phục hồi bản cũ nếu cài hoặc restart dịch vụ thất bại.
-- Trình cập nhật OTA không xác minh TLS/checksum của SimpleDeckyTDP v1.0.5 bị vô hiệu hóa ở cả backend và kiểm tra phiên bản; hãy chạy lại iSteamOS khi muốn nâng plugin này bằng payload đã xác minh.
+- Trình cập nhật OTA không xác minh TLS/checksum của SimpleDeckyTDP v1.0.7 bị vô hiệu hóa ở cả backend và kiểm tra phiên bản; hãy chạy lại iSteamOS khi muốn nâng plugin này bằng payload đã xác minh.
 - Không còn tạo `GAMESCOPE_FORCE_HDR=0` vì đây không phải thiết lập Gamescope hiện hành được hỗ trợ.
 - Nếu script tìm thấy đúng file Gamescope cũ do phiên bản trước tạo, file đó sẽ được đổi tên thành bản sao lưu thay vì bị xóa.
 - Không xóa cache Gamescope.

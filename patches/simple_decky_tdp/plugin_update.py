@@ -6,7 +6,7 @@ import subprocess
 import decky_plugin
 
 
-INSTALLED_VERSION = "1.0.5"
+INSTALLED_VERSION = "1.0.7"
 
 
 def restart_decky_loader():
