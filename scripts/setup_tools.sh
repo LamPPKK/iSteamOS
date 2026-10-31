@@ -215,15 +215,87 @@ else
 fi
 
 log "Installing or updating Google Antigravity"
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/512x512/apps"
+
+# 1. If Antigravity IDE is found in Downloads or tarball exists, relocate to ~/.local/share/antigravity-ide
+ide_target_dir="$HOME/.local/share/antigravity-ide"
+if [[ -d "$HOME/Downloads/Antigravity IDE" ]]; then
+    log "Relocating Antigravity IDE from Downloads to $ide_target_dir"
+    mkdir -p "$ide_target_dir"
+    cp -r "$HOME/Downloads/Antigravity IDE/"* "$ide_target_dir/"
+    rm -rf "$HOME/Downloads/Antigravity IDE"
+elif [[ ! -d "$ide_target_dir" && -f "$HOME/Downloads/Antigravity IDE.tar.gz" ]]; then
+    log "Extracting Antigravity IDE tarball to $ide_target_dir"
+    mkdir -p "$ide_target_dir"
+    tar -xzf "$HOME/Downloads/Antigravity IDE.tar.gz" -C "$ide_target_dir" --strip-components=1 2>/dev/null || \
+    tar -xzf "$HOME/Downloads/Antigravity IDE.tar.gz" -C "$ide_target_dir"
+fi
+
+if [[ -d "$ide_target_dir" ]]; then
+    mkdir -p "$HOME/Applications"
+    ln -sfn "$ide_target_dir" "$HOME/Applications/antigravity-ide"
+
+    if [[ -x "$ide_target_dir/bin/antigravity-ide" ]]; then
+        ln -sf "$ide_target_dir/bin/antigravity-ide" "$HOME/.local/bin/antigravity-ide"
+        ln -sf "$ide_target_dir/bin/antigravity-ide" "$HOME/.local/bin/antigravity"
+    elif [[ -x "$ide_target_dir/antigravity-ide" ]]; then
+        ln -sf "$ide_target_dir/antigravity-ide" "$HOME/.local/bin/antigravity-ide"
+        ln -sf "$ide_target_dir/antigravity-ide" "$HOME/.local/bin/antigravity"
+    fi
+
+    local_logo="$ide_target_dir/resources/app/extensions/agy/img/logo.png"
+    if [[ -f "$local_logo" ]]; then
+        cp "$local_logo" "$HOME/.local/share/icons/antigravity-ide.png"
+        cp "$local_logo" "$HOME/.local/share/icons/hicolor/512x512/apps/antigravity-ide.png"
+    fi
+
+    cat <<'EOF' > "$HOME/.local/share/applications/antigravity-ide.desktop"
+[Desktop Entry]
+Name=Antigravity IDE
+Comment=AI-powered IDE by Google
+GenericName=Text Editor
+Exec=/home/deck/.local/share/antigravity-ide/antigravity-ide %F
+Icon=antigravity-ide
+Type=Application
+StartupNotify=true
+StartupWMClass=antigravity-ide
+Categories=Development;IDE;TextEditor;
+MimeType=text/plain;inode/directory;
+Actions=new-empty-window;
+
+[Desktop Action new-empty-window]
+Name=New Empty Window
+Exec=/home/deck/.local/share/antigravity-ide/antigravity-ide --new-window %F
+Icon=antigravity-ide
+EOF
+    chmod +x "$HOME/.local/share/applications/antigravity-ide.desktop"
+
+    if [[ -d "$HOME/Desktop" ]]; then
+        cp "$HOME/.local/share/applications/antigravity-ide.desktop" "$HOME/Desktop/antigravity-ide.desktop"
+        chmod +x "$HOME/Desktop/antigravity-ide.desktop"
+    fi
+fi
+
+# 2. CLI installation / symlinking
 if ! command -v agy >/dev/null 2>&1; then
-    curl -fsSL https://antigravity.google/cli/install.sh | bash || true
+    if [[ -x "$HOME/.gemini/bin/agy" ]]; then
+        ln -sf "$HOME/.gemini/bin/agy" "$HOME/.local/bin/agy"
+    else
+        curl -fsSL https://antigravity.google/cli/install.sh | bash || true
+        if [[ -x "$HOME/.gemini/bin/agy" && ! -f "$HOME/.local/bin/agy" ]]; then
+            ln -sf "$HOME/.gemini/bin/agy" "$HOME/.local/bin/agy"
+        fi
+    fi
 else
-    printf 'Google Antigravity is already installed.\n'
+    printf 'Google Antigravity CLI is already installed.\n'
 fi
 
 for bin_dir in "$HOME/.local/bin" "$HOME/.gemini/bin"; do
     if [[ -d "$bin_dir" ]] && ! grep -Fq "$bin_dir" "$shell_rc" 2>/dev/null; then
         printf '\nexport PATH="%s:$PATH"\n' "$bin_dir" >> "$shell_rc"
+    fi
+    if [[ -d "$bin_dir" ]] && [[ -f "$HOME/.bash_profile" ]] && ! grep -Fq "$bin_dir" "$HOME/.bash_profile" 2>/dev/null; then
+        printf '\nexport PATH="%s:$PATH"\n' "$bin_dir" >> "$HOME/.bash_profile"
     fi
     if [[ -d "$bin_dir" && ":$PATH:" != *":$bin_dir:"* ]]; then
         export PATH="$bin_dir:$PATH"
