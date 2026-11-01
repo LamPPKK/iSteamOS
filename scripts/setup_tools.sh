@@ -408,5 +408,111 @@ for app in "${keyring_apps[@]}"; do
     configure_flatpak_keyring_access "$app"
 done
 
+install_or_update_zalo() {
+    log "Installing or updating Zalo for Linux (VN-Linux-Family)"
+    local zalo_dir="$HOME/Applications"
+    local zalo_bin="$zalo_dir/Zalo.AppImage"
+    local zalo_tag
+    local zalo_url
+
+    mkdir -p "$zalo_dir" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/512x512/apps"
+
+    zalo_tag="$(curl -fsSL https://github.com/VN-Linux-Family/zalo-for-linux/tags 2>/dev/null | grep -o -E '/VN-Linux-Family/zalo-for-linux/releases/tag/[^"]+' | head -n 1 | sed 's|.*/releases/tag/||' || true)"
+    [[ -n "$zalo_tag" ]] || zalo_tag="26.10.20"
+
+    zalo_url="$(curl -fsSL "https://github.com/VN-Linux-Family/zalo-for-linux/releases/expanded_assets/$zalo_tag" 2>/dev/null | grep -o -E '/VN-Linux-Family/zalo-for-linux/releases/download/[^"]+x86_64\.AppImage' | head -n 1 || true)"
+    if [[ -n "$zalo_url" ]]; then
+        zalo_url="https://github.com$zalo_url"
+    else
+        zalo_url="https://github.com/VN-Linux-Family/zalo-for-linux/releases/download/$zalo_tag/Zalo-$zalo_tag+ZaDark-26.3-e9f3dc1-x86_64.AppImage"
+    fi
+
+    local temp_download="$temp_dir/Zalo.AppImage"
+    printf 'Downloading Zalo for Linux (%s)...\n' "$zalo_tag"
+    if curl -fsSL -o "$temp_download" "$zalo_url"; then
+        chmod +x "$temp_download"
+        mv -f "$temp_download" "$zalo_bin"
+        ln -sf "$zalo_bin" "$HOME/.local/bin/zalo"
+
+        local extract_dir="$temp_dir/zalo_icon_extract"
+        mkdir -p "$extract_dir"
+        (
+            cd "$extract_dir"
+            "$zalo_bin" --appimage-extract "usr/share/icons/hicolor/512x512/apps/zalo.png" >/dev/null 2>&1 || true
+        )
+        if [[ -f "$extract_dir/squashfs-root/usr/share/icons/hicolor/512x512/apps/zalo.png" ]]; then
+            cp -f "$extract_dir/squashfs-root/usr/share/icons/hicolor/512x512/apps/zalo.png" "$HOME/.local/share/icons/zalo.png"
+            cp -f "$extract_dir/squashfs-root/usr/share/icons/hicolor/512x512/apps/zalo.png" "$HOME/.local/share/icons/hicolor/512x512/apps/zalo.png"
+        fi
+        rm -rf "$extract_dir"
+
+        cat <<EOF > "$HOME/.local/share/applications/zalo.desktop"
+[Desktop Entry]
+Name=Zalo
+Comment=Zalo for Linux (Unofficial Desktop Client)
+Exec=$zalo_bin %U
+Icon=${HOME}/.local/share/icons/zalo.png
+Terminal=false
+Type=Application
+Categories=Network;Chat;InstantMessaging;
+StartupWMClass=Zalo
+EOF
+        chmod +x "$HOME/.local/share/applications/zalo.desktop"
+        if [[ -d "$HOME/Desktop" ]]; then
+            cp -f "$HOME/.local/share/applications/zalo.desktop" "$HOME/Desktop/zalo.desktop"
+            chmod +x "$HOME/Desktop/zalo.desktop"
+        fi
+        printf 'Zalo for Linux installed successfully at %s\n' "$zalo_bin"
+    else
+        printf 'WARNING: Failed to download Zalo for Linux.\n' >&2
+    fi
+}
+
+install_or_update_linuxviewer() {
+    log "Installing or updating LinuxViewer (MacViewer/UltraViewer for Linux)"
+    local lv_tar="$temp_dir/linuxviewer.tar.gz"
+    local lv_extract="$temp_dir/linuxviewer_extract"
+    local lv_url="https://github.com/DeanOpen/MacViewer/releases/latest/download/linuxviewer-wayland-x86_64.tar.gz"
+
+    mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/256x256/apps" "$lv_extract"
+
+    printf 'Downloading LinuxViewer (Wayland edition)...\n'
+    if curl -fsSL -o "$lv_tar" "$lv_url"; then
+        tar -xzf "$lv_tar" -C "$lv_extract"
+        if [[ -f "$lv_extract/usr/bin/linuxviewer" ]]; then
+            cp -f "$lv_extract/usr/bin/linuxviewer" "$HOME/.local/bin/linuxviewer"
+            chmod +x "$HOME/.local/bin/linuxviewer"
+        fi
+
+        if [[ -f "$lv_extract/usr/share/icons/hicolor/256x256/apps/linuxviewer.png" ]]; then
+            cp -f "$lv_extract/usr/share/icons/hicolor/256x256/apps/linuxviewer.png" "$HOME/.local/share/icons/linuxviewer.png"
+            cp -f "$lv_extract/usr/share/icons/hicolor/256x256/apps/linuxviewer.png" "$HOME/.local/share/icons/hicolor/256x256/apps/linuxviewer.png"
+        fi
+
+        cat <<EOF > "$HOME/.local/share/applications/linuxviewer.desktop"
+[Desktop Entry]
+Type=Application
+Name=LinuxViewer
+Comment=UltraViewer-compatible remote desktop
+Exec=$HOME/.local/bin/linuxviewer %U
+Icon=${HOME}/.local/share/icons/linuxviewer.png
+Terminal=false
+Categories=Network;RemoteAccess;
+Keywords=remote;desktop;ultraviewer;vnc;
+EOF
+        chmod +x "$HOME/.local/share/applications/linuxviewer.desktop"
+        if [[ -d "$HOME/Desktop" ]]; then
+            cp -f "$HOME/.local/share/applications/linuxviewer.desktop" "$HOME/Desktop/linuxviewer.desktop"
+            chmod +x "$HOME/Desktop/linuxviewer.desktop"
+        fi
+        printf 'LinuxViewer installed successfully at %s\n' "$HOME/.local/bin/linuxviewer"
+    else
+        printf 'WARNING: Failed to download LinuxViewer.\n' >&2
+    fi
+}
+
+install_or_update_zalo
+install_or_update_linuxviewer
+
 log "Apps, Browsers & Developer Tools installed successfully"
 

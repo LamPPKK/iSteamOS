@@ -158,8 +158,8 @@ show_menu() {
       • Dev Mode, Base Packages, Brave, Homebrew (fastfetch, gh)
       • Google Antigravity (IDE & CLI), VS Code, Android Studio, Edge, Chrome
       • GitHub Desktop, Postman, Insomnia, draw.io, FileZilla, LibreOffice
-      • Discord, Telegram, Viber, Signal, Slack, Zoom, OpenBubbles, Proton Mail
-      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN
+      • Zalo for Linux, LinuxViewer (UltraViewer), Discord, Telegram, Viber, Signal, Slack, Zoom
+      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN, OpenBubbles, Proton Mail
       • Fcitx5-Unikey Vietnamese Input (Autostart & Preconfigured)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
       • Cloudflare WARP & DNS Fix (Bypass Vietnam Steam Block)

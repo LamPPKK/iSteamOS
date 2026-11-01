@@ -70,8 +70,8 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
       • Dev Mode, Base Packages, Brave, Homebrew (fastfetch, gh)
       • Google Antigravity (IDE & CLI), VS Code, Android Studio, Edge, Chrome
       • GitHub Desktop, Postman, Insomnia, draw.io, FileZilla, LibreOffice
-      • Discord, Telegram, Viber, Signal, Slack, Zoom, OpenBubbles, Proton Mail
-      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN
+      • Zalo for Linux, LinuxViewer (UltraViewer), Discord, Telegram, Viber, Signal, Slack, Zoom
+      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN, OpenBubbles, Proton Mail
       • Bộ gõ Tiếng Việt Fcitx5-Unikey (Tự động bật khi mở máy, chuẩn Telex Unicode)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
       • Cloudflare WARP & Sửa lỗi Steam bị chặn tại VN
