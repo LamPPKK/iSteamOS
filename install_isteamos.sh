@@ -155,9 +155,12 @@ show_menu() {
                  SteamOS Post Install – All in One
 ===================================================================
   [1] Full Installation (All-in-One - Recommended)
-      • Dev Mode, Base Packages, Brave Browser, Homebrew & Fastfetch
-      • Google Antigravity CLI, VS Code, Edge & GitHub Desktop (with KWallet)
-      • Fcitx5-Unikey Vietnamese Input (Preconfigured)
+      • Dev Mode, Base Packages, Brave, Homebrew (fastfetch, gh)
+      • Google Antigravity (IDE & CLI), VS Code, Android Studio, Edge, Chrome
+      • GitHub Desktop, Postman, Insomnia, draw.io, FileZilla, LibreOffice
+      • Discord, Telegram, Viber, Signal, Slack, Zoom, OpenBubbles, Proton Mail
+      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN
+      • Fcitx5-Unikey Vietnamese Input (Autostart & Preconfigured)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
       • Cloudflare WARP & DNS Fix (Bypass Vietnam Steam Block)
 
@@ -167,13 +170,13 @@ show_menu() {
       • Fix "Content Servers Unreachable" error in Steam
 
   [3] Install Vietnamese IME (Fcitx5 + Unikey Only)
-      • Install packages, configure autostart, environment & profile
+      • Install packages, autostart on boot, Telex Unicode & KWin integration
 
   [4] Install Decky Components & TDP Control
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Browsers & Developer Tools Only
-      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code, Edge & GitHub Desktop
+  [5] Install Apps, Browsers & Developer Tools Only
+      • Complete application suite (Flatpaks, Browsers, Dev Tools & Keyrings)
 
   [0] Exit
 ===================================================================

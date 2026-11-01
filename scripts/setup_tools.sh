@@ -156,6 +156,44 @@ configure_edge_password_store() {
     install_config "$flags_file" < "$updated_file"
 }
 
+configure_chrome_password_store() {
+    local flags_file="$HOME/.var/app/com.google.Chrome/config/chrome-flags.conf"
+    local updated_file="$temp_dir/chrome-flags.conf"
+    local password_store=kwallet5
+
+    if command -v kwalletd6 >/dev/null 2>&1; then
+        password_store=kwallet6
+    fi
+
+    if [[ -L "$flags_file" || ( -e "$flags_file" && ! -f "$flags_file" ) ]]; then
+        printf 'WARNING: Refusing to replace non-regular Chrome flags file: %s\n' "$flags_file" >&2
+        return
+    fi
+
+    if [[ -f "$flags_file" ]]; then
+        awk -v password_store="$password_store" '
+            BEGIN { password_store_written = 0 }
+            /^[[:space:]]*--password-store(=|[[:space:]])/ {
+                if (!password_store_written) {
+                    print "--password-store=" password_store
+                    password_store_written = 1
+                }
+                next
+            }
+            { print }
+            END {
+                if (!password_store_written) {
+                    print "--password-store=" password_store
+                }
+            }
+        ' "$flags_file" > "$updated_file"
+    else
+        printf '%s\n' "--password-store=$password_store" > "$updated_file"
+    fi
+
+    install_config "$flags_file" < "$updated_file"
+}
+
 configure_flatpak_keyring_access() {
     local app_id=$1
 
@@ -208,11 +246,13 @@ if ! grep -Fqx "$brew_shellenv_line" "$shell_rc"; then
 fi
 
 brew update
-if brew list --formula fastfetch >/dev/null 2>&1; then
-    brew upgrade fastfetch
-else
-    brew install fastfetch
-fi
+for formula in fastfetch gh; do
+    if brew list --formula "$formula" >/dev/null 2>&1; then
+        brew upgrade "$formula" || true
+    else
+        brew install "$formula" || true
+    fi
+done
 
 log "Installing or updating Google Antigravity"
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/512x512/apps"
@@ -303,16 +343,70 @@ for bin_dir in "$HOME/.local/bin" "$HOME/.gemini/bin"; do
 done
 
 log "Installing or updating Flatpak applications"
-install_or_update_flatpak com.visualstudio.code
-install_or_update_flatpak com.microsoft.Edge
-install_or_update_flatpak io.github.shiftey.Desktop
+flatpak_apps=(
+    # Web Browsers
+    "com.google.Chrome"                     # Google Chrome
+    "com.microsoft.Edge"                    # Microsoft Edge
 
-log "Configuring encrypted KWallet credential storage"
+    # Developer & Productivity Tools
+    "io.github.shiftey.Desktop"             # GitHub Desktop
+    "com.visualstudio.code"                 # Visual Studio Code
+    "com.google.AndroidStudio"              # Android Studio
+    "com.getpostman.Postman"                # Postman API Platform
+    "rest.insomnia.Insomnia"                # Insomnia REST Client
+    "org.filezillaproject.Filezilla"        # FileZilla FTP Client
+    "com.jgraph.drawio.desktop"             # draw.io Diagram Tool
+    "org.libreoffice.LibreOffice"           # LibreOffice Suite
+
+    # Communication & Social
+    "com.discordapp.Discord"                # Discord
+    "org.telegram.desktop"                  # Telegram Desktop
+    "com.viber.Viber"                       # Viber
+    "org.signal.Signal"                     # Signal Desktop
+    "com.slack.Slack"                       # Slack
+    "us.zoom.Zoom"                          # Zoom
+    "app.openbubbles.OpenBubbles"           # OpenBubbles
+    "me.proton.Mail"                        # Proton Mail
+    "org.mozilla.thunderbird"               # Mozilla Thunderbird
+
+    # Media, Streaming & Gaming
+    "com.spotify.Client"                    # Spotify Music
+    "org.videolan.VLC"                      # VLC Media Player
+    "com.obsproject.Studio"                 # OBS Studio
+    "com.parsecgaming.parsec"               # Parsec Game Streaming
+
+    # Networking & Utilities
+    "org.localsend.localsend_app"           # LocalSend
+    "com.nextcloud.desktopclient.nextcloud" # Nextcloud Desktop Client
+    "com.protonvpn.www"                     # Proton VPN
+    "org.fcitx.Fcitx5"                      # Fcitx 5
+)
+
+for app in "${flatpak_apps[@]}"; do
+    printf 'Installing or updating Flatpak: %s\n' "$app"
+    install_or_update_flatpak "$app"
+done
+
+log "Configuring encrypted KWallet credential storage and keyring overrides"
 configure_vscode_password_store
 configure_edge_password_store
-configure_flatpak_keyring_access com.visualstudio.code
-configure_flatpak_keyring_access com.microsoft.Edge
-configure_flatpak_keyring_access io.github.shiftey.Desktop
+configure_chrome_password_store
 
-log "Browsers & Developer Tools installed successfully"
+keyring_apps=(
+    "com.visualstudio.code"
+    "com.microsoft.Edge"
+    "com.google.Chrome"
+    "io.github.shiftey.Desktop"
+    "com.discordapp.Discord"
+    "com.slack.Slack"
+    "org.signal.Signal"
+    "me.proton.Mail"
+    "org.mozilla.thunderbird"
+)
+
+for app in "${keyring_apps[@]}"; do
+    configure_flatpak_keyring_access "$app"
+done
+
+log "Apps, Browsers & Developer Tools installed successfully"
 

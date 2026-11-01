@@ -44,8 +44,8 @@ iSteamOS/
 └── scripts/
     ├── install_decky_components.sh # Cài Decky Loader, SimpleDeckyTDP (Ryzen Z1) & DeckyWARP
     ├── fix_steam_vietnam.sh       # Bật Cloudflare WARP & sửa DNS Steam tại Việt Nam
-    ├── setup_unikey.sh            # Cài đặt và cấu hình Fcitx5 + Unikey tiếng Việt
-    └── setup_tools.sh             # Cài Brave, Google Antigravity, Brew, VS Code, Edge & GitHub Desktop
+    ├── setup_unikey.sh            # Cài đặt và cấu hình Fcitx5 + Unikey tiếng Việt (tự bật khi mở máy)
+    └── setup_tools.sh             # Cài bộ ứng dụng hoàn chỉnh: Trình duyệt, Dev Tools, Chat & Giải trí
 ```
 
 ---
@@ -67,9 +67,12 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
                  SteamOS Post Install – All in One
 ===================================================================
   [1] Full Installation (All-in-One - Khuyên dùng)
-      • Dev Mode, Base Packages, Brave Browser, Homebrew & Fastfetch
-      • Google Antigravity CLI, VS Code, Edge & GitHub Desktop (kèm KWallet)
-      • Bộ gõ Tiếng Việt Fcitx5-Unikey (Cấu hình sẵn)
+      • Dev Mode, Base Packages, Brave, Homebrew (fastfetch, gh)
+      • Google Antigravity (IDE & CLI), VS Code, Android Studio, Edge, Chrome
+      • GitHub Desktop, Postman, Insomnia, draw.io, FileZilla, LibreOffice
+      • Discord, Telegram, Viber, Signal, Slack, Zoom, OpenBubbles, Proton Mail
+      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN
+      • Bộ gõ Tiếng Việt Fcitx5-Unikey (Tự động bật khi mở máy, chuẩn Telex Unicode)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
       • Cloudflare WARP & Sửa lỗi Steam bị chặn tại VN
 
@@ -79,13 +82,13 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
       • Sửa lỗi "Content Servers Unreachable" khi tải game Steam
 
   [3] Install Vietnamese IME (Fcitx5 + Unikey Only)
-      • Cài gói, cấu hình autostart, environment và profile Unikey
+      • Cài gói, cấu hình autostart khi bật máy, environment và profile Unikey
 
   [4] Install Decky Components & TDP Control
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Browsers & Developer Tools Only
-      • Brave Browser, Google Antigravity CLI, Homebrew, VS Code, Edge & GitHub Desktop
+  [5] Install Apps, Browsers & Developer Tools Only
+      • Trọn bộ ứng dụng Flatpak, Trình duyệt, Dev Tools & Cấu hình KWallet
 
   [0] Exit
 ===================================================================
