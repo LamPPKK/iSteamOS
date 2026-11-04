@@ -66,29 +66,27 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
 ===================================================================
                  SteamOS Post Install – All in One
 ===================================================================
-  [1] Full Installation (All-in-One - Khuyên dùng)
-      • Dev Mode, Base Packages, Brave, Homebrew (fastfetch, gh)
-      • Google Antigravity (IDE & CLI), VS Code, Android Studio, Edge, Chrome
-      • GitHub Desktop, Postman, Insomnia, draw.io, FileZilla, LibreOffice
-      • Zalo for Linux, LinuxViewer (UltraViewer), Discord, Telegram, Viber, Signal, Slack, Zoom
-      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN, OpenBubbles, Proton Mail
-      • Bộ gõ Tiếng Việt Fcitx5-Unikey (Tự động bật khi mở máy, chuẩn Telex Unicode)
+  [1] Core Handheld Setup (Fix Steam VN + Unikey + Decky - Recommended)
+      • Cloudflare WARP & DNS-over-TLS Fix (Bypass Vietnam ISP Block)
+      • Fcitx5-Unikey Vietnamese Input (Autostart & Preconfigured)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
-      • Cloudflare WARP & Sửa lỗi Steam bị chặn tại VN
 
-  [2] Fix Steam in Vietnam (Cloudflare WARP & DNS Fix)
-      • Sửa DNS fallback (1.1.1.1 / 8.8.8.8)
-      • Bật và kết nối Cloudflare WARP tự động
-      • Sửa lỗi "Content Servers Unreachable" khi tải game Steam
+  [2] Fix Steam in Vietnam Only (Cloudflare WARP & DNS-over-TLS)
+      • Configure systemd-resolved DoT (1.1.1.1 / 8.8.8.8)
+      • Enable, register & connect Cloudflare WARP (tunnel_only mode)
+      • Bypass ISP blocks on Steam, LinkedIn, etc.
 
-  [3] Install Vietnamese IME (Fcitx5 + Unikey Only)
-      • Cài gói, cấu hình autostart khi bật máy, environment và profile Unikey
+  [3] Install Vietnamese IME Only (Fcitx5 + Unikey)
+      • Install packages, autostart on boot, Telex Unicode & KWin integration
 
-  [4] Install Decky Components & TDP Control
+  [4] Install Decky Components & TDP Control Only
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Apps, Browsers & Developer Tools Only
-      • Trọn bộ ứng dụng Flatpak, Trình duyệt, Dev Tools & Cấu hình KWallet
+  [5] Install Applications, Browsers & Developer Tools (Interactive Menu)
+      • Select individual apps (1..32) or install all at once:
+        Chrome, Edge (KWallet6 Sync), Brave, Antigravity IDE/CLI, VS Code,
+        Android Studio, Zalo, LinuxViewer, Wallpaper Engine KDE6, Discord,
+        Telegram, Viber, Spotify, VLC, OBS, Parsec, LocalSend, Homebrew...
 
   [0] Exit
 ===================================================================
@@ -97,11 +95,12 @@ Script sẽ hiển thị bảng menu tương tác để bạn chọn mục cần
 > [!TIP]
 > Bạn cũng có thể truyền cờ lệnh trực tiếp nếu không muốn chọn menu:
 >
-> - `./install_isteamos.sh --all` : Chạy cài đặt trọn gói tất cả.
-> - `./install_isteamos.sh --steam-fix` : Chỉ sửa lỗi Steam bị chặn tại Việt Nam.
+> - `./install_isteamos.sh --core` : Chỉ cài 3 thành phần cốt lõi (Fix Steam VN + Unikey + Decky).
+> - `./install_isteamos.sh --steam-fix` : Chỉ sửa lỗi Steam & vượt chặn nhà mạng Việt Nam (DoT + WARP).
 > - `./install_isteamos.sh --unikey` : Chỉ cài bộ gõ tiếng Việt Unikey.
 > - `./install_isteamos.sh --decky` : Chỉ cài Decky Loader & SimpleDeckyTDP.
-> - `./install_isteamos.sh --tools` : Chỉ cài Brave, Antigravity, Brew, Flatpaks & GitHub Desktop.
+> - `./install_isteamos.sh --tools` : Mở bảng chọn cài đặt từng ứng dụng lẻ (1..32) hoặc cài tất cả (`--tools --all`).
+> - `./install_isteamos.sh --all` : Cài đặt trọn gói cả Core Handheld lẫn toàn bộ 32 ứng dụng.
 
 > [!IMPORTANT]
 > **Không** chạy script bằng lệnh `sudo ./install_isteamos.sh`. Script được thiết kế để chạy với quyền user `deck` bình thường và sẽ tự yêu cầu mật khẩu `sudo` ở những bước cần thiết.

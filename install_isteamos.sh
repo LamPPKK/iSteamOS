@@ -68,40 +68,10 @@ disable_readonly_if_needed() {
     fi
 }
 
-setup_base_system() {
-    log "Enabling SteamOS developer mode"
-    sudo steamos-devmode enable --no-prompt
-
-    if command -v steamos-unminimize >/dev/null 2>&1; then
-        log "Restoring development files removed from the SteamOS image"
-        sudo steamos-unminimize --dev --noconfirm
-    fi
-
-    log "Updating system packages and installing prerequisites"
-    sudo pacman -Syu --needed --noconfirm \
-        base-devel \
-        procps-ng \
-        curl \
-        file \
-        git \
-        jq \
-        7zip \
-        unzip \
-        fcitx5 \
-        fcitx5-configtool \
-        fcitx5-gtk \
-        fcitx5-qt \
-        fcitx5-unikey \
-        kwallet \
-        kwallet-pam \
-        kwalletmanager \
-        libsecret
-}
-
 setup_tools() {
     local helper="$SCRIPT_DIR/scripts/setup_tools.sh"
     [[ -x "$helper" ]] || die "Missing executable helper: $helper"
-    "$helper"
+    "$helper" "$@"
 }
 
 setup_fcitx5_unikey() {
@@ -131,21 +101,19 @@ setup_cloudflare_warp_and_dns() {
     "$helper"
 }
 
-run_full_installation() {
-    log "STARTING FULL INSTALLATION (SteamOS Post Install – All in One)"
-    disable_readonly_if_needed
-    setup_base_system
-    restore_readonly
+run_core_handheld_setup() {
+    log "STARTING CORE HANDHELD SETUP (Fix Steam VN + Unikey + Decky)"
 
-    setup_tools
+    setup_cloudflare_warp_and_dns
     setup_fcitx5_unikey
     setup_decky_components
-    setup_cloudflare_warp_and_dns
 
-    log "FULL INSTALLATION COMPLETED"
+    log "CORE HANDHELD SETUP COMPLETED"
     printf '%s\n' \
-        "Please reboot the system, and open KWalletManager once to create or unlock kdewallet." \
-        "Fcitx5 Unikey, Decky Loader, SimpleDeckyTDP, and Cloudflare WARP are preconfigured."
+        "Core handheld components installed and configured:" \
+        "  • Fix Steam Vietnam (DNS-over-TLS + Cloudflare WARP tunnel_only)" \
+        "  • Fcitx5-Unikey Vietnamese Input (Telex Unicode + Wayland autostart)" \
+        "  • Decky Loader + SimpleDeckyTDP + DeckyWARP"
 }
 
 show_menu() {
@@ -154,29 +122,27 @@ show_menu() {
 ===================================================================
                  SteamOS Post Install – All in One
 ===================================================================
-  [1] Full Installation (All-in-One - Recommended)
-      • Dev Mode, Base Packages, Brave, Homebrew (fastfetch, gh)
-      • Google Antigravity (IDE & CLI), VS Code, Android Studio, Edge, Chrome
-      • GitHub Desktop, Postman, Insomnia, draw.io, FileZilla, LibreOffice
-      • Zalo for Linux, LinuxViewer (UltraViewer), Discord, Telegram, Viber, Signal, Slack, Zoom
-      • Spotify, VLC, OBS Studio, Parsec, LocalSend, Nextcloud, Proton VPN, OpenBubbles, Proton Mail
+  [1] Core Handheld Setup (Fix Steam VN + Unikey + Decky - Recommended)
+      • Cloudflare WARP & DNS-over-TLS Fix (Bypass Vietnam ISP Block)
       • Fcitx5-Unikey Vietnamese Input (Autostart & Preconfigured)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
-      • Cloudflare WARP & DNS Fix (Bypass Vietnam Steam Block)
 
-  [2] Fix Steam in Vietnam (Cloudflare WARP & DNS Fix)
-      • Set fallback DNS to 1.1.1.1 / 8.8.8.8
-      • Enable, register & connect Cloudflare WARP
-      • Fix "Content Servers Unreachable" error in Steam
+  [2] Fix Steam in Vietnam Only (Cloudflare WARP & DNS-over-TLS)
+      • Configure systemd-resolved DoT (1.1.1.1 / 8.8.8.8)
+      • Enable, register & connect Cloudflare WARP (tunnel_only mode)
+      • Bypass ISP blocks on Steam, LinkedIn, etc.
 
-  [3] Install Vietnamese IME (Fcitx5 + Unikey Only)
+  [3] Install Vietnamese IME Only (Fcitx5 + Unikey)
       • Install packages, autostart on boot, Telex Unicode & KWin integration
 
-  [4] Install Decky Components & TDP Control
+  [4] Install Decky Components & TDP Control Only
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Apps, Browsers & Developer Tools Only
-      • Complete application suite (Flatpaks, Browsers, Dev Tools & Keyrings)
+  [5] Install Applications, Browsers & Developer Tools (Interactive Menu)
+      • Select individual apps (1..32) or install all at once:
+        Chrome, Edge (KWallet6 Sync), Brave, Antigravity IDE/CLI, VS Code,
+        Android Studio, Zalo, LinuxViewer, Wallpaper Engine KDE6, Discord,
+        Telegram, Viber, Spotify, VLC, OBS, Parsec, LocalSend, Homebrew...
 
   [0] Exit
 ===================================================================
@@ -186,7 +152,7 @@ EOF
 
 # --- Main Entrypoint ---
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    printf 'Usage: %s [--all | --steam-fix | --unikey | --decky | --tools]\n' "$(basename "$0")"
+    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --all]\n' "$(basename "$0")"
     exit 0
 fi
 
@@ -205,7 +171,7 @@ if [[ -z "$action" ]]; then
     show_menu
     read -r choice
     case "$choice" in
-        1) action="--all" ;;
+        1) action="--core" ;;
         2) action="--steam-fix" ;;
         3) action="--unikey" ;;
         4) action="--decky" ;;
@@ -222,8 +188,12 @@ if [[ -z "$action" ]]; then
 fi
 
 case "$action" in
-    --all|-1)
-        run_full_installation
+    --core|-1)
+        run_core_handheld_setup
+        ;;
+    --all)
+        run_core_handheld_setup
+        setup_tools --all
         ;;
     --steam-fix|--warp|-2)
         setup_cloudflare_warp_and_dns
@@ -235,15 +205,16 @@ case "$action" in
         setup_decky_components
         ;;
     --tools|--apps|-5)
-        setup_tools
+        shift || true
+        setup_tools "$@"
         ;;
     --help|-h)
-        printf 'Usage: %s [--all | --steam-fix | --unikey | --decky | --tools]\n' "$(basename "$0")"
+        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --all]\n' "$(basename "$0")"
         exit 0
         ;;
     *)
         printf 'Unknown option: %s\n' "$action" >&2
-        printf 'Usage: %s [--all | --steam-fix | --unikey | --decky | --tools]\n' "$(basename "$0")"
+        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --all]\n' "$(basename "$0")"
         exit 1
         ;;
 esac
