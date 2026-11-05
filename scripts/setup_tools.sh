@@ -58,6 +58,12 @@ disable_readonly_if_needed() {
     fi
 }
 
+install_pacman_packages() {
+    disable_readonly_if_needed
+    sudo pacman -S --needed --noconfirm "$@"
+    restore_readonly
+}
+
 install_config() {
     local destination=$1
     local staged_file
@@ -212,7 +218,7 @@ configure_chrome_password_store() {
     install_config "$flags_file" < "$updated_file"
 }
 
-# --- Individual App Installers ---
+# --- Individual App & Tool Installers (1..42) ---
 
 install_chrome() {
     log "Installing or updating Google Chrome"
@@ -358,6 +364,11 @@ install_insomnia() {
     install_or_update_flatpak "rest.insomnia.Insomnia"
 }
 
+install_wireshark() {
+    log "Installing or updating Wireshark"
+    install_or_update_flatpak "org.wireshark.Wireshark"
+}
+
 install_drawio() {
     log "Installing or updating draw.io"
     install_or_update_flatpak "com.jgraph.drawio.desktop"
@@ -371,6 +382,11 @@ install_filezilla() {
 install_libreoffice() {
     log "Installing or updating LibreOffice"
     install_or_update_flatpak "org.libreoffice.LibreOffice"
+}
+
+install_distrobox_podman() {
+    log "Installing or updating Distrobox & Podman"
+    install_pacman_packages distrobox podman fuse-overlayfs
 }
 
 install_or_update_zalo() {
@@ -476,6 +492,44 @@ EOF
     fi
 }
 
+install_beeper() {
+    log "Installing or updating Beeper Unified Messenger"
+    local beeper_dir="$HOME/Applications"
+    local beeper_bin="$beeper_dir/Beeper.AppImage"
+    mkdir -p "$beeper_dir" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons"
+
+    if [[ -f "$HOME/Downloads/Beeper"*".AppImage" ]]; then
+        local existing_beeper
+        existing_beeper="$(ls -t "$HOME/Downloads/Beeper"*.AppImage 2>/dev/null | head -n 1 || true)"
+        if [[ -n "$existing_beeper" ]]; then
+            cp -f "$existing_beeper" "$beeper_bin"
+            chmod +x "$beeper_bin"
+        fi
+    elif [[ ! -f "$beeper_bin" ]]; then
+        printf 'Downloading Beeper AppImage...\n'
+        curl -fsSL -L "https://api.beeper.com/desktop/download/linux/x64/stable/com.automattic.beeper.desktop" -o "$beeper_bin" || true
+        [[ -f "$beeper_bin" ]] && chmod +x "$beeper_bin"
+    fi
+
+    if [[ -x "$beeper_bin" ]]; then
+        ln -sf "$beeper_bin" "$HOME/.local/bin/beeper"
+        cat <<EOF > "$HOME/.local/share/applications/Beeper.desktop"
+[Desktop Entry]
+Name=Beeper
+Exec=$beeper_bin %u
+Type=Application
+Terminal=false
+Comment=The ultimate messaging app
+Categories=Network;Chat;
+MimeType=x-scheme-handler/beeper;
+StartupWMClass=Beeper
+StartupNotify=true
+Icon=$HOME/.local/share/icons/beeper.png
+EOF
+        chmod +x "$HOME/.local/share/applications/Beeper.desktop"
+    fi
+}
+
 install_discord() {
     log "Installing or updating Discord"
     install_or_update_flatpak "com.discordapp.Discord"
@@ -526,6 +580,11 @@ install_thunderbird() {
     configure_flatpak_keyring_access "org.mozilla.thunderbird"
 }
 
+install_kdeconnect() {
+    log "Installing or updating KDE Connect"
+    install_pacman_packages kdeconnect
+}
+
 install_spotify() {
     log "Installing or updating Spotify"
     install_or_update_flatpak "com.spotify.Client"
@@ -536,6 +595,11 @@ install_vlc() {
     install_or_update_flatpak "org.videolan.VLC"
 }
 
+install_mpv() {
+    log "Installing or updating mpv Media Player & GStreamer Codecs"
+    install_pacman_packages mpv gst-libav gst-plugins-good gst-plugins-bad-libs gst-plugin-pipewire ffmpegthumbs
+}
+
 install_obs() {
     log "Installing or updating OBS Studio"
     install_or_update_flatpak "com.obsproject.Studio"
@@ -544,6 +608,11 @@ install_obs() {
 install_parsec() {
     log "Installing or updating Parsec Game Streaming"
     install_or_update_flatpak "com.parsecgaming.parsec"
+}
+
+install_audio_tools() {
+    log "Installing or updating NoiseTorch & Pavucontrol (Audio Mixer & Mic Noise Suppression)"
+    install_pacman_packages noisetorch pavucontrol alsa-utils
 }
 
 install_localsend() {
@@ -559,6 +628,37 @@ install_nextcloud() {
 install_protonvpn() {
     log "Installing or updating Proton VPN"
     install_or_update_flatpak "com.protonvpn.www"
+}
+
+install_wireguard() {
+    log "Installing WireGuard VPN & Tools (wireguard-tools, wgcf, vortix, wireproxy)"
+    install_pacman_packages wireguard-tools wgcf vortix wireproxy
+
+    mkdir -p "$HOME/.config/wgcf" "$HOME/Documents"
+    (
+        cd "$HOME/.config/wgcf"
+        if [[ ! -f wgcf-account.toml ]]; then
+            wgcf register --accept-tos || true
+        fi
+        if [[ -f wgcf-account.toml && ! -f wgcf-profile.conf ]]; then
+            wgcf generate || true
+        fi
+        if [[ -f wgcf-profile.conf ]]; then
+            cp -f wgcf-profile.conf "$HOME/Documents/wgcf-wireguard.conf"
+            sudo mkdir -p /etc/wireguard
+            sudo cp -f wgcf-profile.conf /etc/wireguard/wgcf.conf
+            if command -v nmcli >/dev/null 2>&1 && ! nmcli connection show "wgcf" >/dev/null 2>&1; then
+                sudo nmcli connection import type wireguard file /etc/wireguard/wgcf.conf || true
+                sudo nmcli connection modify "wgcf" connection.autoconnect no || true
+                sudo nmcli connection down "wgcf" 2>/dev/null || true
+            fi
+        fi
+    )
+}
+
+install_openvpn() {
+    log "Installing or updating OpenVPN & NetworkManager Plugin"
+    install_pacman_packages openvpn networkmanager-openvpn
 }
 
 install_wallpaper_engine() {
@@ -602,8 +702,24 @@ install_wallpaper_engine() {
     fi
 }
 
+install_kde_utilities() {
+    log "Installing or updating KDE Desktop Utilities (Kate, Okular, Gwenview, Spectacle, Ark, Filelight, PartitionManager, Qrca)"
+    install_pacman_packages \
+        kate \
+        okular \
+        gwenview \
+        spectacle \
+        ark \
+        filelight \
+        partitionmanager \
+        qrca \
+        dolphin \
+        konsole \
+        kwalletmanager
+}
+
 install_homebrew() {
-    log "Installing or updating Homebrew & CLI Tools (fastfetch, gh)"
+    log "Installing or updating Homebrew & CLI Tools (fastfetch, gh, neofetch)"
     local brew_bin
     brew_bin="$(command -v brew || true)"
     if [[ -z "$brew_bin" ]]; then
@@ -638,13 +754,67 @@ install_homebrew() {
     fi
 
     brew update
-    for formula in fastfetch gh; do
+    for formula in fastfetch gh neofetch; do
         if brew list --formula "$formula" >/dev/null 2>&1; then
             brew upgrade "$formula" || true
         else
             brew install "$formula" || true
         fi
     done
+}
+
+install_cli_system_suite() {
+    log "Installing or updating System & Developer CLI Suite (paru, btop, htop, ripgrep, fd, tmux, vim, fish, zsh, 7zip, unrar, jq...)"
+    install_pacman_packages \
+        base-devel \
+        paru \
+        btop \
+        htop \
+        iotop \
+        nethogs \
+        ncdu \
+        compsize \
+        ripgrep \
+        fd \
+        tmux \
+        vim \
+        nano \
+        tree \
+        jq \
+        7zip \
+        unrar \
+        unzip \
+        zip \
+        dos2unix \
+        fish \
+        zsh \
+        bash-completion \
+        bats \
+        gocryptfs \
+        sshfs \
+        powertop \
+        mangohud \
+        lib32-mangohud \
+        gamemode \
+        lib32-gamemode
+}
+
+install_cloud_sync_suite() {
+    log "Installing OneDrive & Google Drive Cloud Sync Suite"
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -x "$script_dir/setup_cloud_sync.sh" ]]; then
+        "$script_dir/setup_cloud_sync.sh" --all
+    fi
+}
+
+install_pc_workstation_optimizer() {
+    log "Running SteamOS to PC Workstation Optimizer"
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -x "$script_dir/optimize_pc_mode.sh" ]]; then
+        "$script_dir/optimize_pc_mode.sh" --all
+    fi
 }
 
 install_by_id() {
@@ -659,36 +829,48 @@ install_by_id() {
         7)  install_github_desktop ;;
         8)  install_postman ;;
         9)  install_insomnia ;;
-        10) install_drawio ;;
-        11) install_filezilla ;;
-        12) install_libreoffice ;;
-        13) install_or_update_zalo ;;
-        14) install_or_update_linuxviewer ;;
-        15) install_discord ;;
-        16) install_telegram ;;
-        17) install_viber ;;
-        18) install_signal ;;
-        19) install_slack ;;
-        20) install_zoom ;;
-        21) install_openbubbles ;;
-        22) install_proton_mail ;;
-        23) install_thunderbird ;;
-        24) install_spotify ;;
-        25) install_vlc ;;
-        26) install_obs ;;
-        27) install_parsec ;;
-        28) install_localsend ;;
-        29) install_nextcloud ;;
-        30) install_protonvpn ;;
-        31) install_wallpaper_engine ;;
-        32) install_homebrew ;;
+        10) install_wireshark ;;
+        11) install_drawio ;;
+        12) install_filezilla ;;
+        13) install_libreoffice ;;
+        14) install_distrobox_podman ;;
+        15) install_or_update_zalo ;;
+        16) install_or_update_linuxviewer ;;
+        17) install_beeper ;;
+        18) install_discord ;;
+        19) install_telegram ;;
+        20) install_viber ;;
+        21) install_signal ;;
+        22) install_slack ;;
+        23) install_zoom ;;
+        24) install_openbubbles ;;
+        25) install_proton_mail ;;
+        26) install_thunderbird ;;
+        27) install_kdeconnect ;;
+        28) install_spotify ;;
+        29) install_vlc ;;
+        30) install_mpv ;;
+        31) install_obs ;;
+        32) install_parsec ;;
+        33) install_audio_tools ;;
+        34) install_localsend ;;
+        35) install_nextcloud ;;
+        36) install_protonvpn ;;
+        37) install_wireguard ;;
+        38) install_openvpn ;;
+        39) install_wallpaper_engine ;;
+        40) install_kde_utilities ;;
+        41) install_homebrew ;;
+        42) install_cli_system_suite ;;
+        43) install_cloud_sync_suite ;;
+        44) install_pc_workstation_optimizer ;;
         *)  printf 'WARNING: Unknown application number: %s\n' "$id" >&2 ;;
     esac
 }
 
 install_all_apps() {
-    log "Installing All Applications, Browsers & Developer Tools"
-    for i in {1..32}; do
+    log "Installing All Applications, Browsers & Developer Tools (1..44)"
+    for i in {1..44}; do
         install_by_id "$i"
     done
     log "All Applications, Browsers & Developer Tools installed successfully"
@@ -698,7 +880,7 @@ show_tools_menu() {
     clear 2>/dev/null || true
     cat <<'EOF'
 ===================================================================
-          Select Applications to Install (Option 5)
+       Select Applications & Tools to Install (Option 5)
 ===================================================================
   [Browsers]
     1) Google Chrome                2) Microsoft Edge (KWallet6 Sync)
@@ -708,31 +890,39 @@ show_tools_menu() {
     4) Google Antigravity (IDE/CLI) 5) Visual Studio Code
     6) Android Studio               7) GitHub Desktop
     8) Postman                      9) Insomnia
-   10) draw.io                     11) FileZilla
-   12) LibreOffice Suite
+   10) Wireshark                   11) draw.io
+   12) FileZilla                   13) LibreOffice Suite
+   14) Distrobox & Podman
 
   [Communication & Remote Desktop]
-   13) Zalo for Linux (AppImage)   14) LinuxViewer (UltraViewer)
-   15) Discord                     16) Telegram Desktop
-   17) Viber                       18) Signal Desktop
-   19) Slack                       20) Zoom
-   21) OpenBubbles (iMessage)      22) Proton Mail
-   23) Mozilla Thunderbird
+   15) Zalo for Linux (AppImage)   16) LinuxViewer (UltraViewer)
+   17) Beeper Unified Messenger    18) Discord
+   19) Telegram Desktop            20) Viber
+   21) Signal Desktop              22) Slack
+   23) Zoom                        24) OpenBubbles (iMessage)
+   25) Proton Mail                 26) Mozilla Thunderbird
+   27) KDE Connect
 
-  [Media, Streaming & Utilities]
-   24) Spotify                     25) VLC Media Player
-   26) OBS Studio                  27) Parsec Game Streaming
-   28) LocalSend                   29) Nextcloud Desktop
-   30) Proton VPN
+  [Media, Audio & Streaming]
+   28) Spotify                     29) VLC Media Player
+   30) mpv Player & GStreamer      31) OBS Studio
+   32) Parsec Game Streaming       33) NoiseTorch & Pavucontrol
 
-  [Desktop Customization & CLI]
-   31) Wallpaper Engine KDE6       32) Homebrew (fastfetch, gh)
+  [Networking, VPN & Cloud Sync]
+   34) LocalSend                   35) Nextcloud Desktop
+   36) Proton VPN                  37) WireGuard VPN & Tools (wgcf/vortix)
+   38) OpenVPN & NM Plugin         43) OneDrive & Google Drive Sync Suite
 
-  [A] Install ALL Applications
+  [Desktop Customization, KDE Apps, CLI & PC Optimizer]
+   39) Wallpaper Engine KDE6       40) KDE Apps (Kate/Okular/Ark/PartMgr)
+   41) Homebrew (fastfetch/gh)     42) CLI Suite (paru/btop/rg/tmux/zsh)
+   44) PC Workstation Optimizer (TCP BBR, ZRAM, Rootfs, CUPS, Boot Mode)
+
+  [A] Install ALL Applications & Tools (1..44)
   [0] Cancel / Exit
 ===================================================================
 EOF
-    printf 'Enter app numbers separated by space or comma (e.g. 2, 13, 31 or A for all): '
+    printf 'Enter app numbers separated by space or comma (e.g. 2, 15, 37, 43 or A for all): '
 }
 
 # --- Main Execution ---

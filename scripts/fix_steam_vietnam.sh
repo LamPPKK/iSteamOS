@@ -35,6 +35,14 @@ nameserver 8.8.4.4
 options edns0
 EOF
 
+# Ignore DHCP router DNS (e.g. 192.168.1.1) on active Ethernet/Wi-Fi connections so ISP DNS never leaks
+if command -v nmcli >/dev/null 2>&1; then
+    while IFS= read -r conn; do
+        [[ -n "$conn" ]] || continue
+        sudo nmcli connection modify "$conn" ipv4.ignore-auto-dns yes ipv6.ignore-auto-dns yes 2>/dev/null || true
+    done < <(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | awk -F: '$2 ~ /ethernet|wireless/ {print $1}')
+fi
+
 # Ensure systemd-resolved is active and /etc/resolv.conf points to the standard stub resolver
 # (Prevents warp-svc from entering 'Foreign' overwrite mode and breaking DNS on disconnect)
 sudo systemctl enable --now systemd-resolved.service
@@ -65,9 +73,7 @@ if ! command -v warp-cli >/dev/null 2>&1; then
     fi
 fi
 
-# 3. Enable and configure WARP daemon in tunnel_only mode
-# Using tunnel_only routes traffic through Cloudflare WARP (bypassing SNI DPI blocks on Steam, LinkedIn, etc.)
-# while delegating DNS resolution to systemd-resolved DNS-over-TLS (avoiding WARP DNS proxy check loops).
+# 3. Enable and configure WARP daemon (WireGuard + tunnel_only + Split Tunnel Exclude for Facebook/Messenger)
 if command -v warp-cli >/dev/null 2>&1; then
     printf 'Enabling and starting warp-svc.service...\n'
     sudo systemctl enable --now warp-svc.service
@@ -84,8 +90,29 @@ if command -v warp-cli >/dev/null 2>&1; then
         warp-cli --accept-tos registration new || true
     fi
 
-    printf 'Configuring Cloudflare WARP in tunnel_only mode (paired with systemd-resolved DoT)...\n'
+    printf 'Configuring Cloudflare WARP (WireGuard + tunnel_only mode)...\n'
+    warp-cli tunnel protocol set WireGuard >/dev/null 2>&1 || true
     warp-cli mode tunnel_only >/dev/null 2>&1 || warp-cli mode warp >/dev/null 2>&1 || true
+
+    printf 'Excluding Meta/Facebook/Messenger IP ranges from WARP tunnel for direct native speed...\n'
+    fb_cidrs=(
+        "157.240.0.0/16"
+        "31.13.24.0/21"
+        "31.13.64.0/18"
+        "66.220.144.0/20"
+        "69.63.176.0/20"
+        "69.171.224.0/19"
+        "173.252.64.0/18"
+        "179.60.192.0/22"
+        "185.60.216.0/22"
+        "129.134.0.0/17"
+        "45.64.40.0/22"
+        "2a03:2880::/32"
+    )
+    for cidr in "${fb_cidrs[@]}"; do
+        warp-cli tunnel ip add-range "$cidr" >/dev/null 2>&1 || true
+    done
+
     warp-cli connect || true
 
     if systemctl --user list-unit-files warp-taskbar.service 2>/dev/null | grep -q warp-taskbar; then
@@ -99,7 +126,8 @@ fi
 printf '\n%s\n' \
     "Steam & ISP bypass tips for Vietnam:" \
     "  1. DNS is encrypted via systemd-resolved DNS-over-TLS (1.1.1.1 / 8.8.8.8)." \
-    "  2. Traffic is tunneled via Cloudflare WARP (tunnel_only mode) for stable connectivity." \
-    "  3. In Steam -> Settings -> Downloads, set 'Download Region' to 'Singapore' or 'Hong Kong'."
+    "  2. Traffic is tunneled via Cloudflare WARP (WireGuard + tunnel_only) for Steam & LinkedIn." \
+    "  3. Facebook & Messenger IPv4/IPv6 ranges are excluded (Split Tunnel) for direct native speed." \
+    "  4. In Steam -> Settings -> Downloads, set 'Download Region' to 'Singapore' or 'Hong Kong'."
 
 log "Cloudflare WARP & DNS-over-TLS Fix applied successfully"

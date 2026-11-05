@@ -101,6 +101,24 @@ setup_cloudflare_warp_and_dns() {
     "$helper"
 }
 
+setup_pc_workstation_mode() {
+    local helper="$SCRIPT_DIR/scripts/optimize_pc_mode.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper" "$@"
+}
+
+setup_cloud_sync() {
+    local helper="$SCRIPT_DIR/scripts/setup_cloud_sync.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper" "$@"
+}
+
+run_system_doctor() {
+    local helper="$SCRIPT_DIR/scripts/system_doctor.sh"
+    [[ -x "$helper" ]] || die "Missing executable helper: $helper"
+    "$helper"
+}
+
 run_core_handheld_setup() {
     log "STARTING CORE HANDHELD SETUP (Fix Steam VN + Unikey + Decky)"
 
@@ -111,7 +129,7 @@ run_core_handheld_setup() {
     log "CORE HANDHELD SETUP COMPLETED"
     printf '%s\n' \
         "Core handheld components installed and configured:" \
-        "  • Fix Steam Vietnam (DNS-over-TLS + Cloudflare WARP tunnel_only)" \
+        "  • Fix Steam Vietnam (DNS-over-TLS + Cloudflare WARP WireGuard + FB Split-Tunnel)" \
         "  • Fcitx5-Unikey Vietnamese Input (Telex Unicode + Wayland autostart)" \
         "  • Decky Loader + SimpleDeckyTDP + DeckyWARP"
 }
@@ -120,17 +138,16 @@ show_menu() {
     clear 2>/dev/null || true
     cat <<'EOF'
 ===================================================================
-                 SteamOS Post Install – All in One
+       iSteamOS – SteamOS to Full PC & Handheld Toolkit
 ===================================================================
-  [1] Core Handheld Setup (Fix Steam VN + Unikey + Decky - Recommended)
-      • Cloudflare WARP & DNS-over-TLS Fix (Bypass Vietnam ISP Block)
+  [1] Core Handheld Setup (Fix Steam VN + Unikey + Decky ONLY)
+      • Cloudflare WARP (WireGuard + FB Split-Tunnel) & DNS-over-TLS
       • Fcitx5-Unikey Vietnamese Input (Autostart & Preconfigured)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
 
-  [2] Fix Steam in Vietnam Only (Cloudflare WARP & DNS-over-TLS)
-      • Configure systemd-resolved DoT (1.1.1.1 / 8.8.8.8)
-      • Enable, register & connect Cloudflare WARP (tunnel_only mode)
-      • Bypass ISP blocks on Steam, LinkedIn, etc.
+  [2] Fix Steam, LinkedIn & Facebook Messenger in Vietnam Only
+      • systemd-resolved DoT (1.1.1.1 / 8.8.8.8) + Valid Symlink
+      • WARP WireGuard tunnel_only + Direct Meta/Facebook Split-Tunnel
 
   [3] Install Vietnamese IME Only (Fcitx5 + Unikey)
       • Install packages, autostart on boot, Telex Unicode & KWin integration
@@ -138,21 +155,41 @@ show_menu() {
   [4] Install Decky Components & TDP Control Only
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Applications, Browsers & Developer Tools (Interactive Menu)
-      • Select individual apps (1..32) or install all at once:
-        Chrome, Edge (KWallet6 Sync), Brave, Antigravity IDE/CLI, VS Code,
-        Android Studio, Zalo, LinuxViewer, Wallpaper Engine KDE6, Discord,
-        Telegram, Viber, Spotify, VLC, OBS, Parsec, LocalSend, Homebrew...
+  [5] Install Applications, Browsers & Developer Tools (Interactive 1..44)
+      • Select individual apps one by one (1..44) or install all (A):
+        Chrome, Edge, Brave, Antigravity IDE/CLI, VS Code, Android Studio,
+        GitHub Desktop, Postman, Insomnia, Wireshark, draw.io, FileZilla,
+        LibreOffice, Distrobox/Podman, Zalo, LinuxViewer, Beeper, Discord,
+        Telegram, Viber, Signal, Slack, Zoom, OpenBubbles, Proton Mail,
+        Thunderbird, KDE Connect, Spotify, VLC, mpv, OBS, Parsec, NoiseTorch,
+        LocalSend, Nextcloud, Proton VPN, WireGuard, OpenVPN, Wallpaper Engine,
+        KDE Apps, Homebrew, CLI Suite, OneDrive & Google Drive Sync
+
+  [6] PC Workstation & System Optimizer (Use SteamOS Like a Full PC)
+      • Kernel, ZRAM Swappiness, IDE File-Watchers (inotify) & TCP BBR Network
+      • SteamOS 5GB Rootfs (/) Space Cleaner & Pacman ParallelDownloads=10
+      • Rootless Podman & Distrobox on /home (~300GB partition)
+      • Boot Mode Switcher (Desktop PC vs Gaming Mode), KWallet6 & CUPS Printer
+
+  [7] Setup Cloud Storage Sync (Microsoft OneDrive & Google Drive)
+      • OneDrive: OneDriver (On-Demand FUSE), OneDriveGUI & OneDrive CLI
+      • Google Drive: KIO-GDrive (Dolphin Native), Rclone & Rclone Browser Qt6
+
+  [8] System Doctor & PC Mode Health Check (Diagnostics Dashboard)
+      • Check CPU/RAM/ZRAM, Disk (/ vs /home), TCP BBR, WARP/DNS/Steam/FB,
+        Cloud Sync, Dev Containers, Unikey, Decky & Printer Services
+
+  [9] Full SteamOS-to-PC Transformation (Core + PC Optimizer + Cloud + All Apps)
 
   [0] Exit
 ===================================================================
 EOF
-    printf 'Please enter your choice [0-5]: '
+    printf 'Please enter your choice [0-9]: '
 }
 
 # --- Main Entrypoint ---
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --all]\n' "$(basename "$0")"
+    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$(basename "$0")"
     exit 0
 fi
 
@@ -162,7 +199,9 @@ for required_command in sudo steamos-devmode steamos-readonly pacman flatpak cur
     require_command "$required_command"
 done
 
-sudo -v
+if [[ "${1:-}" != "--doctor" && "${1:-}" != "-8" ]]; then
+    sudo -v
+fi
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/isteamos.XXXXXX")"
 
 action="${1:-}"
@@ -176,6 +215,10 @@ if [[ -z "$action" ]]; then
         3) action="--unikey" ;;
         4) action="--decky" ;;
         5) action="--tools" ;;
+        6) action="--pc-mode" ;;
+        7) action="--cloud-sync" ;;
+        8) action="--doctor" ;;
+        9) action="--all" ;;
         0|q|Q)
             printf '\nExiting without changes.\n'
             exit 0
@@ -191,9 +234,12 @@ case "$action" in
     --core|-1)
         run_core_handheld_setup
         ;;
-    --all)
+    --all|--full-pc|-9)
         run_core_handheld_setup
+        setup_pc_workstation_mode --all
+        setup_cloud_sync --all
         setup_tools --all
+        run_system_doctor
         ;;
     --steam-fix|--warp|-2)
         setup_cloudflare_warp_and_dns
@@ -208,16 +254,29 @@ case "$action" in
         shift || true
         setup_tools "$@"
         ;;
+    --pc-mode|--pc|--optimize|-6)
+        shift || true
+        setup_pc_workstation_mode "$@"
+        ;;
+    --cloud-sync|--cloud|-7)
+        shift || true
+        setup_cloud_sync "$@"
+        ;;
+    --doctor|--status|-8)
+        run_system_doctor
+        ;;
     --help|-h)
-        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --all]\n' "$(basename "$0")"
+        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$(basename "$0")"
         exit 0
         ;;
     *)
         printf 'Unknown option: %s\n' "$action" >&2
-        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --all]\n' "$(basename "$0")"
+        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$(basename "$0")"
         exit 1
         ;;
 esac
 
-printf '\nOperation finished successfully. Press Enter to close...\n'
-read -r
+if [[ -t 0 && -z "${1:-}" ]]; then
+    printf '\nOperation finished successfully. Press Enter to close...\n'
+    read -r
+fi
