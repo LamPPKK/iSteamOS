@@ -39,7 +39,7 @@ Run any profile directly without cloning the repository manually (each command i
    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --decky
    ```
 
-5. **Interactive Application Selector (Choose from 55 Apps & Dev Tools):**
+5. **Open Ghost Toolbox App Manager (Interactive Install / Uninstall `1..55` with Live `[✓]` Status):**
    ```bash
    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --tools
    ```
@@ -49,22 +49,27 @@ Run any profile directly without cloning the repository manually (each command i
    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --tools 2 15 37 45 48
    ```
 
-7. **PC Workstation & Kernel/ZRAM/Rootfs Optimizer:**
+7. **Uninstall Specific Apps by Number (e.g. Zalo, Teams, Remmina RDP):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --uninstall 15 45 48
+   ```
+
+8. **PC Workstation & Kernel/ZRAM/Rootfs Optimizer:**
    ```bash
    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --pc-mode --all
    ```
 
-8. **Cloud Storage Sync (Microsoft OneDrive & Google Drive):**
+9. **Cloud Storage Sync (Microsoft OneDrive & Google Drive):**
    ```bash
    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --cloud-sync --all
    ```
 
-9. **System Doctor & Diagnostics Dashboard:**
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --doctor
-   ```
+10. **System Doctor & Diagnostics Dashboard:**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --doctor
+    ```
 
-10. **Full SteamOS-to-PC Transformation (Core + PC Optimizer + Cloud + All 55 Apps):**
+11. **Full SteamOS-to-PC Transformation (Core + PC Optimizer + Cloud + All 55 Apps):**
     ```bash
     curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --all
     ```
@@ -89,7 +94,8 @@ chmod +x install_isteamos.sh scripts/*.sh
 | `--steam-fix` | Configure `systemd-resolved` DoT and Cloudflare WARP WireGuard split-tunnel only. |
 | `--unikey` | Install and autostart Fcitx5 + Unikey (Telex Unicode) only. |
 | `--decky` | Install Decky Loader `v3.3.1`, SimpleDeckyTDP `v1.0.7`, and DeckyWARP `v1.6.1`. |
-| `--tools [IDs...]` | Open the interactive `1..55` app selector or install specified app IDs / `--all`. |
+| `--tools [IDs...]` | Open the Ghost Toolbox (`1..55`) or install specified app IDs / `--all`. |
+| `--uninstall [IDs...]` | Uninstall specific app IDs or ranges (e.g. `--uninstall 15 45` or `--uninstall 1-5`). |
 | `--pc-mode [--all]` | Apply PC Workstation optimizations (TCP BBR, ZRAM, `inotify`, Podman, CUPS). |
 | `--cloud-sync [--all]` | Install OneDrive & Google Drive sync tools and systemd auto-mount services. |
 | `--doctor` | Run the System Doctor health check and live connectivity diagnostics. |
@@ -151,8 +157,12 @@ Module [`scripts/setup_cloud_sync.sh`](scripts/setup_cloud_sync.sh) integrates n
 
 ---
 
-### 4. Interactive Application & Developer Suite (`[5] --tools`)
-Select **`5`** (`--tools`) to install apps selectively by number (e.g., `2, 15, 37, 45, 48`) or press **`A`** to install all **55** packages:
+### 4. Ghost Spectre-Style App Toolbox (`[5] --tools`)
+Select **`5`** (`--tools`) to open the interactive **iSteamOS Ghost Toolbox** with live **`[✓]` / `[ ]`** installation badges across all **55** managed apps & tools:
+
+- **Install single apps or ranges:** Enter `2, 15, 45` or `1-5`
+- **Uninstall single apps or ranges:** Enter `u 15, 45`, `u 1-5`, `-15 -45`, or type `U` for the dedicated uninstall prompt
+- **Bulk & Maintenance commands:** `A` (Install ALL 55), `UA` (Uninstall ALL after confirmation), `C` (Clean unused Flatpak runtimes & Pacman cache), `0` (Back / Exit)
 
 - **Browsers (KWallet5/6 Keyring Sync):** `1)` Google Chrome, `2)` Microsoft Edge, `3)` Brave Browser.
 - **Development, AI & Productivity:** `4)` Google Antigravity (IDE & CLI), `5)` Visual Studio Code, `6)` Android Studio, `7)` GitHub Desktop, `8)` Postman, `9)` Insomnia, `10)` Wireshark, `11)` draw.io, `12)` FileZilla, `13)` LibreOffice Suite, `14)` Distrobox & Podman, `49)` Gittyup & GitKraken (Git GUIs), `55)` Google Gemini CLI & Desktop Web App.

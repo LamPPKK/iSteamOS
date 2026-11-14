@@ -24,7 +24,7 @@ show_usage() {
     if [[ -n "${BASH_SOURCE[0]:-}" && -e "${BASH_SOURCE[0]}" ]]; then
         prog="$(basename "${0:-install_isteamos.sh}")"
     fi
-    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$prog"
+    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --uninstall | --pc-mode | --cloud-sync | --doctor | --all]\n' "$prog"
 }
 
 restore_readonly() {
@@ -203,8 +203,8 @@ show_menu() {
   [4] Install Decky Components & TDP Control Only
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Applications, Browsers & Developer Tools (Interactive 1..55)
-      • Select individual apps one by one (1..55) or install all (A):
+  [5] App Toolbox: Install & Uninstall Applications (Ghost Spectre Style 1..55)
+      • Live [✓] / [ ] status badges, install or uninstall single apps/ranges:
         Chrome, Edge, Brave, Antigravity IDE/CLI, VS Code, Android Studio,
         GitHub Desktop, Postman, Insomnia, Wireshark, draw.io, FileZilla,
         LibreOffice, Distrobox/Podman, Zalo, LinuxViewer, Beeper, Discord,
@@ -238,6 +238,59 @@ EOF
     printf 'Please enter your choice [0-9]: '
 }
 
+dispatch_action() {
+    local action="${1:-}"
+    case "$action" in
+        --core|-1)
+            run_core_handheld_setup
+            ;;
+        --all|--full-pc|-9)
+            run_core_handheld_setup
+            setup_pc_workstation_mode --all
+            setup_cloud_sync --all
+            setup_tools --all
+            run_system_doctor
+            ;;
+        --steam-fix|--warp|-2)
+            setup_cloudflare_warp_and_dns
+            ;;
+        --unikey|-3)
+            setup_fcitx5_unikey
+            ;;
+        --decky|-4)
+            setup_decky_components
+            ;;
+        --tools|--apps|-5)
+            shift || true
+            setup_tools "$@"
+            ;;
+        --uninstall|--remove)
+            shift || true
+            setup_tools --uninstall "$@"
+            ;;
+        --pc-mode|--pc|--optimize|-6)
+            shift || true
+            setup_pc_workstation_mode "$@"
+            ;;
+        --cloud-sync|--cloud|-7)
+            shift || true
+            setup_cloud_sync "$@"
+            ;;
+        --doctor|--status|-8)
+            run_system_doctor
+            ;;
+        --help|-h)
+            show_usage
+            exit 0
+            ;;
+        *)
+            printf 'Unknown option: %s\n' "$action" >&2
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
 main() {
     local had_cli_args=$#
     local action="${1:-}"
@@ -266,9 +319,15 @@ main() {
     temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/isteamos.XXXXXX")"
     ensure_repo_files
 
-    if [[ -z "$action" ]]; then
+    if (( had_cli_args > 0 )); then
+        dispatch_action "$@"
+        return 0
+    fi
+
+    local choice
+    while true; do
         show_menu
-        read -r choice
+        IFS= read -r choice || break
         case "$choice" in
             1) action="--core" ;;
             2) action="--steam-fix" ;;
@@ -280,66 +339,23 @@ main() {
             8) action="--doctor" ;;
             9) action="--all" ;;
             0|q|Q)
-                printf '\nExiting without changes.\n'
-                exit 0
+                printf '\nExiting without further changes.\n'
+                break
                 ;;
             *)
                 printf '\nInvalid choice: %s\n' "$choice" >&2
-                exit 1
+                sleep 1
+                continue
                 ;;
         esac
-    fi
 
-    case "$action" in
-        --core|-1)
-            run_core_handheld_setup
-            ;;
-        --all|--full-pc|-9)
-            run_core_handheld_setup
-            setup_pc_workstation_mode --all
-            setup_cloud_sync --all
-            setup_tools --all
-            run_system_doctor
-            ;;
-        --steam-fix|--warp|-2)
-            setup_cloudflare_warp_and_dns
-            ;;
-        --unikey|-3)
-            setup_fcitx5_unikey
-            ;;
-        --decky|-4)
-            setup_decky_components
-            ;;
-        --tools|--apps|-5)
-            shift || true
-            setup_tools "$@"
-            ;;
-        --pc-mode|--pc|--optimize|-6)
-            shift || true
-            setup_pc_workstation_mode "$@"
-            ;;
-        --cloud-sync|--cloud|-7)
-            shift || true
-            setup_cloud_sync "$@"
-            ;;
-        --doctor|--status|-8)
-            run_system_doctor
-            ;;
-        --help|-h)
-            show_usage
-            exit 0
-            ;;
-        *)
-            printf 'Unknown option: %s\n' "$action" >&2
-            show_usage
-            exit 1
-            ;;
-    esac
+        dispatch_action "$action"
 
-    if [[ -t 0 ]] && (( had_cli_args == 0 )); then
-        printf '\nOperation finished successfully. Press Enter to close...\n'
-        read -r
-    fi
+        if [[ -t 0 && "$action" != "--tools" ]]; then
+            printf '\nOperation finished. Press Enter to return to main menu...'
+            IFS= read -r || true
+        fi
+    done
 }
 
 main "$@"

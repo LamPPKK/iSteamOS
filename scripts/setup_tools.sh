@@ -5,6 +5,16 @@ IFS=$'\n\t'
 temp_dir=""
 readonly_changed=0
 
+GREEN='\033[1;32m'
+DIM='\033[2m'
+CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
+RED='\033[1;31m'
+NC='\033[0m'
+
+FLATPAK_CACHE=""
+PACMAN_CACHE=""
+
 log() {
     printf '\n=== %s ===\n' "$*"
 }
@@ -33,8 +43,7 @@ cleanup() {
 
     if (( readonly_changed )); then
         printf '\nRestoring SteamOS readonly mode after an error...\n' >&2
-        sudo steamos-readonly enable
-        if (( $? != 0 && exit_code == 0 )); then
+        if ! sudo steamos-readonly enable && (( exit_code == 0 )); then
             exit_code=1
         fi
     fi
@@ -62,6 +71,43 @@ install_pacman_packages() {
     disable_readonly_if_needed
     sudo pacman -S --needed --noconfirm "$@"
     restore_readonly
+}
+
+remove_pacman_packages() {
+    local installed_pkgs=()
+    local pkg
+
+    for pkg in "$@"; do
+        if pacman -Q "$pkg" >/dev/null 2>&1; then
+            installed_pkgs+=("$pkg")
+        fi
+    done
+
+    if (( ${#installed_pkgs[@]} == 0 )); then
+        printf 'None of the requested packages are installed.\n'
+        return 0
+    fi
+
+    disable_readonly_if_needed
+    sudo pacman -Rns --noconfirm "${installed_pkgs[@]}" || sudo pacman -R --noconfirm "${installed_pkgs[@]}" || true
+    restore_readonly
+}
+
+uninstall_flatpak() {
+    local app_id=$1
+    local removed=0
+
+    if flatpak --user info "$app_id" >/dev/null 2>&1; then
+        flatpak --user uninstall -y --delete-data "$app_id" || flatpak --user uninstall -y "$app_id"
+        removed=1
+    fi
+    if flatpak --system info "$app_id" >/dev/null 2>&1; then
+        sudo flatpak --system uninstall -y --delete-data "$app_id" || sudo flatpak --system uninstall -y "$app_id"
+        removed=1
+    fi
+    if (( removed == 0 )); then
+        printf 'Flatpak %s is not installed.\n' "$app_id"
+    fi
 }
 
 install_config() {
@@ -947,6 +993,313 @@ EOF
     fi
 }
 
+# --- Individual App & Tool Uninstallers (1..55) ---
+
+uninstall_brave() {
+    log "Uninstalling Brave Browser"
+    local removed=0
+    local pkg
+    for pkg in brave-bin brave-origin-bin brave-browser brave-origin; do
+        if command -v pacman >/dev/null 2>&1 && pacman -Q "$pkg" >/dev/null 2>&1; then
+            remove_pacman_packages "$pkg"
+            removed=1
+        fi
+    done
+    if (( removed == 0 )); then
+        disable_readonly_if_needed
+        sudo rm -rf /opt/brave.com /opt/brave-origin \
+            /usr/bin/brave-origin /usr/bin/brave \
+            /usr/local/bin/brave-origin /usr/local/bin/brave \
+            /usr/share/applications/brave-browser*.desktop 2>/dev/null || true
+        rm -rf "$HOME/.local/bin/brave"* "$HOME/.local/share/brave"* \
+            "$HOME/.local/share/applications/brave"*.desktop 2>/dev/null || true
+        restore_readonly
+    fi
+}
+
+uninstall_antigravity() {
+    log "Uninstalling Google Antigravity (IDE & CLI)"
+    rm -rf -- \
+        "$HOME/.local/share/antigravity-ide" \
+        "$HOME/Applications/antigravity-ide" \
+        "$HOME/.local/bin/antigravity-ide" \
+        "$HOME/.local/bin/antigravity" \
+        "$HOME/.local/bin/agy" \
+        "$HOME/.local/share/icons/antigravity-ide.png" \
+        "$HOME/.local/share/icons/hicolor/512x512/apps/antigravity-ide.png" \
+        "$HOME/.local/share/applications/antigravity-ide.desktop" \
+        "$HOME/Desktop/antigravity-ide.desktop"
+}
+
+uninstall_zalo() {
+    log "Uninstalling Zalo for Linux"
+    rm -f -- \
+        "$HOME/Applications/Zalo.AppImage" \
+        "$HOME/.local/bin/zalo" \
+        "$HOME/.local/share/icons/zalo.png" \
+        "$HOME/.local/share/icons/hicolor/512x512/apps/zalo.png" \
+        "$HOME/.local/share/applications/zalo.desktop" \
+        "$HOME/Desktop/zalo.desktop"
+}
+
+uninstall_linuxviewer() {
+    log "Uninstalling LinuxViewer"
+    rm -f -- \
+        "$HOME/.local/bin/linuxviewer" \
+        "$HOME/.local/share/icons/linuxviewer.png" \
+        "$HOME/.local/share/icons/hicolor/256x256/apps/linuxviewer.png" \
+        "$HOME/.local/share/applications/linuxviewer.desktop" \
+        "$HOME/Desktop/linuxviewer.desktop"
+}
+
+uninstall_beeper() {
+    log "Uninstalling Beeper Unified Messenger"
+    rm -f -- \
+        "$HOME/Applications/Beeper.AppImage" \
+        "$HOME/.local/bin/beeper" \
+        "$HOME/.local/share/applications/Beeper.desktop"
+}
+
+uninstall_wireguard() {
+    log "Uninstalling WireGuard VPN & Tools"
+    if command -v nmcli >/dev/null 2>&1 && nmcli connection show "wgcf" >/dev/null 2>&1; then
+        sudo nmcli connection down "wgcf" 2>/dev/null || true
+        sudo nmcli connection delete "wgcf" 2>/dev/null || true
+    fi
+    remove_pacman_packages wireguard-tools wgcf vortix wireproxy
+}
+
+uninstall_kde_utilities() {
+    log "Uninstalling Extra KDE Utilities (preserving Dolphin & Konsole)"
+    remove_pacman_packages \
+        kate \
+        okular \
+        gwenview \
+        spectacle \
+        ark \
+        filelight \
+        partitionmanager \
+        qrca \
+        kwalletmanager
+}
+
+uninstall_homebrew() {
+    log "Uninstalling Homebrew formulas (fastfetch, gh, neofetch, node, gemini-cli)"
+    local brew_bin=""
+    brew_bin="$(command -v brew || true)"
+    if [[ -z "$brew_bin" ]]; then
+        for candidate in /home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew"; do
+            if [[ -x "$candidate" ]]; then
+                brew_bin="$candidate"
+                break
+            fi
+        done
+    fi
+    if [[ -n "$brew_bin" ]]; then
+        eval "$("$brew_bin" shellenv)"
+        for formula in gemini-cli node neofetch gh fastfetch; do
+            if brew list --formula "$formula" >/dev/null 2>&1; then
+                brew uninstall "$formula" || true
+            fi
+        done
+    else
+        printf 'Homebrew is not installed.\n'
+    fi
+}
+
+uninstall_cli_system_suite() {
+    log "Uninstalling Optional CLI System Suite Packages"
+    remove_pacman_packages \
+        paru \
+        btop \
+        htop \
+        iotop \
+        nethogs \
+        ncdu \
+        compsize \
+        ripgrep \
+        fd \
+        tmux \
+        tree \
+        jq \
+        unrar \
+        dos2unix \
+        fish \
+        zsh \
+        bats \
+        gocryptfs \
+        sshfs \
+        powertop \
+        mangohud \
+        lib32-mangohud \
+        gamemode \
+        lib32-gamemode
+}
+
+uninstall_cloud_sync_suite() {
+    log "Uninstalling OneDrive & Google Drive Cloud Sync Suite"
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl --user disable --now rclone-mount@GoogleDrive.service 2>/dev/null || true
+        systemctl --user disable --now rclone-mount@OneDrive.service 2>/dev/null || true
+    fi
+    rm -f -- \
+        "$HOME/Applications/OneDriveGUI.AppImage" \
+        "$HOME/.local/share/applications/onedrivegui.desktop" \
+        "$HOME/.config/systemd/user/rclone-mount@.service" \
+        "$HOME/.local/bin/isteamos-cloud-mount"
+    remove_pacman_packages rclone rclone-browser-qt6 kio-gdrive onedrive-abraunegg onedriver
+}
+
+uninstall_pc_workstation_optimizer() {
+    log "Reverting PC Workstation Optimizer configurations"
+    disable_readonly_if_needed
+    sudo rm -f /etc/sysctl.d/99-isteamos-pc.conf /etc/modules-load.d/isteamos-bbr.conf
+    sudo sysctl --system >/dev/null 2>&1 || true
+    restore_readonly
+    rm -f -- "$HOME/.local/bin/isteamos-boot-mode" "$HOME/.distroboxrc"
+    printf 'PC Workstation sysctl and boot-mode helper reverted (container data preserved).\n'
+}
+
+uninstall_gemini() {
+    log "Uninstalling Google Gemini CLI & Desktop Launcher"
+    local brew_bin=""
+    brew_bin="$(command -v brew || true)"
+    if [[ -z "$brew_bin" ]]; then
+        for candidate in /home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew"; do
+            if [[ -x "$candidate" ]]; then
+                brew_bin="$candidate"
+                break
+            fi
+        done
+    fi
+    if [[ -n "$brew_bin" ]]; then
+        eval "$("$brew_bin" shellenv)"
+        if brew list --formula gemini-cli >/dev/null 2>&1; then
+            brew uninstall gemini-cli || true
+        fi
+    fi
+    if command -v npm >/dev/null 2>&1; then
+        npm uninstall -g @google/gemini-cli 2>/dev/null || true
+    fi
+    rm -f -- \
+        "$HOME/.local/bin/google-gemini-app" \
+        "$HOME/.local/share/applications/google-gemini.desktop" \
+        "$HOME/Desktop/google-gemini.desktop"
+}
+
+clean_unused_packages() {
+    log "Cleaning Unused Flatpak Runtimes & Pacman Package Cache"
+    if command -v flatpak >/dev/null 2>&1; then
+        flatpak --user uninstall --unused -y 2>/dev/null || true
+        sudo flatpak --system uninstall --unused -y 2>/dev/null || true
+    fi
+    if command -v pacman >/dev/null 2>&1; then
+        disable_readonly_if_needed
+        sudo pacman -Sc --noconfirm || true
+        restore_readonly
+    fi
+    log "Cleanup completed"
+}
+
+# --- Installed Status Detection & Ghost Spectre Toolbox Renderer ---
+
+refresh_installed_cache() {
+    FLATPAK_CACHE=""
+    PACMAN_CACHE=""
+    if command -v flatpak >/dev/null 2>&1; then
+        FLATPAK_CACHE="$(flatpak list --app --columns=application 2>/dev/null || true)"
+    fi
+    if command -v pacman >/dev/null 2>&1; then
+        PACMAN_CACHE="$(pacman -Qq 2>/dev/null || true)"
+    fi
+}
+
+has_flatpak() {
+    [[ -n "$FLATPAK_CACHE" ]] && grep -Fqx "$1" <<< "$FLATPAK_CACHE"
+}
+
+has_pacman_pkg() {
+    [[ -n "$PACMAN_CACHE" ]] && grep -Fqx "$1" <<< "$PACMAN_CACHE"
+}
+
+is_app_installed() {
+    local id=$1
+    case "$id" in
+        1)  has_flatpak "com.google.Chrome" ;;
+        2)  has_flatpak "com.microsoft.Edge" ;;
+        3)  command -v brave-origin >/dev/null 2>&1 || command -v brave >/dev/null 2>&1 ;;
+        4)  [[ -d "$HOME/.local/share/antigravity-ide" ]] || command -v agy >/dev/null 2>&1 ;;
+        5)  has_flatpak "com.visualstudio.code" ;;
+        6)  has_flatpak "com.google.AndroidStudio" ;;
+        7)  has_flatpak "io.github.shiftey.Desktop" ;;
+        8)  has_flatpak "com.getpostman.Postman" ;;
+        9)  has_flatpak "rest.insomnia.Insomnia" ;;
+        10) has_flatpak "org.wireshark.Wireshark" ;;
+        11) has_flatpak "com.jgraph.drawio.desktop" ;;
+        12) has_flatpak "org.filezillaproject.Filezilla" ;;
+        13) has_flatpak "org.libreoffice.LibreOffice" ;;
+        14) has_pacman_pkg "distrobox" && has_pacman_pkg "podman" ;;
+        15) [[ -x "$HOME/Applications/Zalo.AppImage" ]] ;;
+        16) [[ -x "$HOME/.local/bin/linuxviewer" ]] ;;
+        17) [[ -x "$HOME/Applications/Beeper.AppImage" ]] ;;
+        18) has_flatpak "com.discordapp.Discord" ;;
+        19) has_flatpak "org.telegram.desktop" ;;
+        20) has_flatpak "com.viber.Viber" ;;
+        21) has_flatpak "org.signal.Signal" ;;
+        22) has_flatpak "com.slack.Slack" ;;
+        23) has_flatpak "us.zoom.Zoom" ;;
+        24) has_flatpak "app.openbubbles.OpenBubbles" ;;
+        25) has_flatpak "me.proton.Mail" ;;
+        26) has_flatpak "org.mozilla.thunderbird" ;;
+        27) has_pacman_pkg "kdeconnect" ;;
+        28) has_flatpak "com.spotify.Client" ;;
+        29) has_flatpak "org.videolan.VLC" ;;
+        30) has_pacman_pkg "mpv" ;;
+        31) has_flatpak "com.obsproject.Studio" ;;
+        32) has_flatpak "com.parsecgaming.parsec" ;;
+        33) has_pacman_pkg "noisetorch" && has_pacman_pkg "pavucontrol" ;;
+        34) has_flatpak "org.localsend.localsend_app" ;;
+        35) has_flatpak "com.nextcloud.desktopclient.nextcloud" ;;
+        36) has_flatpak "com.protonvpn.www" ;;
+        37) has_pacman_pkg "wireguard-tools" ;;
+        38) has_pacman_pkg "openvpn" ;;
+        39) has_pacman_pkg "WallpaperEngine_kde6" ;;
+        40) has_pacman_pkg "kate" && has_pacman_pkg "okular" ;;
+        41) command -v brew >/dev/null 2>&1 || [[ -x /home/linuxbrew/.linuxbrew/bin/brew || -x "$HOME/.linuxbrew/bin/brew" ]] ;;
+        42) has_pacman_pkg "btop" && has_pacman_pkg "ripgrep" ;;
+        43) has_pacman_pkg "rclone" && has_pacman_pkg "onedriver" ;;
+        44) [[ -f /etc/sysctl.d/99-isteamos-pc.conf ]] ;;
+        45) has_flatpak "com.github.IsmaelMartinez.teams_for_linux" ;;
+        46) has_flatpak "chat.rocket.RocketChat" ;;
+        47) has_flatpak "com.rtosta.zapzap" ;;
+        48) has_flatpak "org.remmina.Remmina" ;;
+        49) has_flatpak "com.github.Murmele.Gittyup" || has_flatpak "com.axosoft.GitKraken" ;;
+        50) has_flatpak "net.agalwood.Motrix" || has_flatpak "io.github.giantpinkrobots.varia" ;;
+        51) has_flatpak "io.ente.auth" ;;
+        52) has_flatpak "com.github.hluk.copyq" ;;
+        53) has_flatpak "io.gitlab.adhami3310.Converter" ;;
+        54) has_flatpak "io.github.flattool.Warehouse" || has_flatpak "com.github.tchx84.Flatseal" ;;
+        55) command -v gemini >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/google-gemini-app" ]] ;;
+        *)  return 1 ;;
+    esac
+}
+
+app_badge() {
+    if is_app_installed "$1"; then
+        printf '%b[✓]%b' "$GREEN" "$NC"
+    else
+        printf '%b[ ]%b' "$DIM" "$NC"
+    fi
+}
+
+format_item() {
+    local id=$1
+    local label=$2
+    local badge
+    badge="$(app_badge "$id")"
+    printf '%2d) %s %-31s' "$id" "$badge" "$label"
+}
+
 install_by_id() {
     local id=$1
     case "$id" in
@@ -1009,66 +1362,232 @@ install_by_id() {
     esac
 }
 
+uninstall_by_id() {
+    local id=$1
+    case "$id" in
+        1)  log "Uninstalling Google Chrome"; uninstall_flatpak "com.google.Chrome" ;;
+        2)  log "Uninstalling Microsoft Edge"; uninstall_flatpak "com.microsoft.Edge" ;;
+        3)  uninstall_brave ;;
+        4)  uninstall_antigravity ;;
+        5)  log "Uninstalling Visual Studio Code"; uninstall_flatpak "com.visualstudio.code" ;;
+        6)  log "Uninstalling Android Studio"; uninstall_flatpak "com.google.AndroidStudio" ;;
+        7)  log "Uninstalling GitHub Desktop"; uninstall_flatpak "io.github.shiftey.Desktop" ;;
+        8)  log "Uninstalling Postman"; uninstall_flatpak "com.getpostman.Postman" ;;
+        9)  log "Uninstalling Insomnia"; uninstall_flatpak "rest.insomnia.Insomnia" ;;
+        10) log "Uninstalling Wireshark"; uninstall_flatpak "org.wireshark.Wireshark" ;;
+        11) log "Uninstalling draw.io"; uninstall_flatpak "com.jgraph.drawio.desktop" ;;
+        12) log "Uninstalling FileZilla"; uninstall_flatpak "org.filezillaproject.Filezilla" ;;
+        13) log "Uninstalling LibreOffice"; uninstall_flatpak "org.libreoffice.LibreOffice" ;;
+        14) log "Uninstalling Distrobox & Podman"; remove_pacman_packages distrobox podman fuse-overlayfs ;;
+        15) uninstall_zalo ;;
+        16) uninstall_linuxviewer ;;
+        17) uninstall_beeper ;;
+        18) log "Uninstalling Discord"; uninstall_flatpak "com.discordapp.Discord" ;;
+        19) log "Uninstalling Telegram Desktop"; uninstall_flatpak "org.telegram.desktop" ;;
+        20) log "Uninstalling Viber"; uninstall_flatpak "com.viber.Viber" ;;
+        21) log "Uninstalling Signal Desktop"; uninstall_flatpak "org.signal.Signal" ;;
+        22) log "Uninstalling Slack"; uninstall_flatpak "com.slack.Slack" ;;
+        23) log "Uninstalling Zoom"; uninstall_flatpak "us.zoom.Zoom" ;;
+        24) log "Uninstalling OpenBubbles"; uninstall_flatpak "app.openbubbles.OpenBubbles" ;;
+        25) log "Uninstalling Proton Mail"; uninstall_flatpak "me.proton.Mail" ;;
+        26) log "Uninstalling Mozilla Thunderbird"; uninstall_flatpak "org.mozilla.thunderbird" ;;
+        27) log "Uninstalling KDE Connect"; remove_pacman_packages kdeconnect ;;
+        28) log "Uninstalling Spotify"; uninstall_flatpak "com.spotify.Client" ;;
+        29) log "Uninstalling VLC Media Player"; uninstall_flatpak "org.videolan.VLC" ;;
+        30) log "Uninstalling mpv Media Player"; remove_pacman_packages mpv ;;
+        31) log "Uninstalling OBS Studio"; uninstall_flatpak "com.obsproject.Studio" ;;
+        32) log "Uninstalling Parsec"; uninstall_flatpak "com.parsecgaming.parsec" ;;
+        33) log "Uninstalling NoiseTorch & Pavucontrol"; remove_pacman_packages noisetorch pavucontrol ;;
+        34) log "Uninstalling LocalSend"; uninstall_flatpak "org.localsend.localsend_app" ;;
+        35) log "Uninstalling Nextcloud Desktop"; uninstall_flatpak "com.nextcloud.desktopclient.nextcloud" ;;
+        36) log "Uninstalling Proton VPN"; uninstall_flatpak "com.protonvpn.www" ;;
+        37) uninstall_wireguard ;;
+        38) log "Uninstalling OpenVPN & NM Plugin"; remove_pacman_packages openvpn networkmanager-openvpn ;;
+        39) log "Uninstalling Wallpaper Engine KDE 6 Plugin"; remove_pacman_packages WallpaperEngine_kde6 ;;
+        40) uninstall_kde_utilities ;;
+        41) uninstall_homebrew ;;
+        42) uninstall_cli_system_suite ;;
+        43) uninstall_cloud_sync_suite ;;
+        44) uninstall_pc_workstation_optimizer ;;
+        45) log "Uninstalling Teams for Linux"; uninstall_flatpak "com.github.IsmaelMartinez.teams_for_linux" ;;
+        46) log "Uninstalling Rocket.Chat Desktop"; uninstall_flatpak "chat.rocket.RocketChat" ;;
+        47) log "Uninstalling ZapZap (WhatsApp)"; uninstall_flatpak "com.rtosta.zapzap" ;;
+        48) log "Uninstalling Remmina Remote Desktop"; uninstall_flatpak "org.remmina.Remmina" ;;
+        49)
+            log "Uninstalling Git GUIs (Gittyup & GitKraken)"
+            uninstall_flatpak "com.github.Murmele.Gittyup"
+            uninstall_flatpak "com.axosoft.GitKraken"
+            ;;
+        50)
+            log "Uninstalling Download Managers (Motrix & Varia)"
+            uninstall_flatpak "net.agalwood.Motrix"
+            uninstall_flatpak "io.github.giantpinkrobots.varia"
+            ;;
+        51) log "Uninstalling Ente Auth"; uninstall_flatpak "io.ente.auth" ;;
+        52) log "Uninstalling CopyQ"; uninstall_flatpak "com.github.hluk.copyq" ;;
+        53) log "Uninstalling Switcheroo Image Converter"; uninstall_flatpak "io.gitlab.adhami3310.Converter" ;;
+        54)
+            log "Uninstalling Warehouse & Flatseal"
+            uninstall_flatpak "io.github.flattool.Warehouse"
+            uninstall_flatpak "com.github.tchx84.Flatseal"
+            ;;
+        55) uninstall_gemini ;;
+        *)  printf 'WARNING: Unknown application number: %s\n' "$id" >&2 ;;
+    esac
+}
+
 install_all_apps() {
     log "Installing All Applications, Browsers & Developer Tools (1..55)"
+    local i
     for i in {1..55}; do
         install_by_id "$i"
     done
     log "All Applications, Browsers & Developer Tools installed successfully"
 }
 
+uninstall_all_apps() {
+    log "Uninstalling All Managed Applications & Tools (1..55)"
+    local i
+    for i in {1..55}; do
+        uninstall_by_id "$i"
+    done
+    log "All managed applications uninstalled"
+}
+
 show_tools_menu() {
+    local installed_count=0
+    local i
+    for i in {1..55}; do
+        if is_app_installed "$i"; then
+            installed_count=$((installed_count + 1))
+        fi
+    done
+
     clear 2>/dev/null || true
-    cat <<'EOF'
-===================================================================
-       Select Applications & Tools to Install (Option 5)
-===================================================================
-  [Browsers]
-    1) Google Chrome                2) Microsoft Edge (KWallet6 Sync)
-    3) Brave Browser (Native)
+    printf '%b==============================================================================%b\n' "$CYAN" "$NC"
+    printf '%b   iSteamOS Ghost Toolbox  |  App Manager (%d / 55 Installed)                 %b\n' "$GREEN" "$installed_count" "$NC"
+    printf '%b==============================================================================%b\n' "$CYAN" "$NC"
 
-  [Developer, AI & Productivity]
-    4) Google Antigravity (IDE/CLI) 5) Visual Studio Code
-    6) Android Studio               7) GitHub Desktop
-    8) Postman                      9) Insomnia
-   10) Wireshark                   11) draw.io
-   12) FileZilla                   13) LibreOffice Suite
-   14) Distrobox & Podman          49) Gittyup & GitKraken (Git GUIs)
-   55) Google Gemini CLI & Web App
+    printf '\n  %b[Browsers]%b\n' "$YELLOW" "$NC"
+    printf '  %s  %s\n' "$(format_item 1 "Google Chrome")" "$(format_item 2 "Microsoft Edge (KWallet6)")"
+    printf '  %s\n' "$(format_item 3 "Brave Browser (Native)")"
 
-  [Communication & Remote Desktop]
-   15) Zalo for Linux (AppImage)   16) LinuxViewer (UltraViewer)
-   17) Beeper Unified Messenger    18) Discord
-   19) Telegram Desktop            20) Viber
-   21) Signal Desktop              22) Slack
-   23) Zoom                        24) OpenBubbles (iMessage)
-   25) Proton Mail                 26) Mozilla Thunderbird
-   27) KDE Connect                 45) Teams for Linux (MS Teams)
-   46) Rocket.Chat Desktop         47) ZapZap (WhatsApp Desktop)
-   48) Remmina Remote Desktop (RDP/VNC)
+    printf '\n  %b[Developer, AI & Productivity]%b\n' "$YELLOW" "$NC"
+    printf '  %s  %s\n' "$(format_item 4 "Google Antigravity (IDE/CLI)")" "$(format_item 5 "Visual Studio Code")"
+    printf '  %s  %s\n' "$(format_item 6 "Android Studio")" "$(format_item 7 "GitHub Desktop")"
+    printf '  %s  %s\n' "$(format_item 8 "Postman")" "$(format_item 9 "Insomnia")"
+    printf '  %s  %s\n' "$(format_item 10 "Wireshark")" "$(format_item 11 "draw.io")"
+    printf '  %s  %s\n' "$(format_item 12 "FileZilla")" "$(format_item 13 "LibreOffice Suite")"
+    printf '  %s  %s\n' "$(format_item 14 "Distrobox & Podman")" "$(format_item 49 "Gittyup & GitKraken (Git)")"
+    printf '  %s\n' "$(format_item 55 "Google Gemini CLI & Web App")"
 
-  [Media, Audio & Streaming]
-   28) Spotify                     29) VLC Media Player
-   30) mpv Player & GStreamer      31) OBS Studio
-   32) Parsec Game Streaming       33) NoiseTorch & Pavucontrol
+    printf '\n  %b[Communication & Remote Desktop]%b\n' "$YELLOW" "$NC"
+    printf '  %s  %s\n' "$(format_item 15 "Zalo for Linux (AppImage)")" "$(format_item 16 "LinuxViewer (UltraViewer)")"
+    printf '  %s  %s\n' "$(format_item 17 "Beeper Unified Messenger")" "$(format_item 18 "Discord")"
+    printf '  %s  %s\n' "$(format_item 19 "Telegram Desktop")" "$(format_item 20 "Viber")"
+    printf '  %s  %s\n' "$(format_item 21 "Signal Desktop")" "$(format_item 22 "Slack")"
+    printf '  %s  %s\n' "$(format_item 23 "Zoom")" "$(format_item 24 "OpenBubbles (iMessage)")"
+    printf '  %s  %s\n' "$(format_item 25 "Proton Mail")" "$(format_item 26 "Mozilla Thunderbird")"
+    printf '  %s  %s\n' "$(format_item 27 "KDE Connect")" "$(format_item 45 "Teams for Linux (MS Teams)")"
+    printf '  %s  %s\n' "$(format_item 46 "Rocket.Chat Desktop")" "$(format_item 47 "ZapZap (WhatsApp Desktop)")"
+    printf '  %s\n' "$(format_item 48 "Remmina Remote Desktop (RDP)")"
 
-  [Networking, VPN, Cloud & Utilities]
-   34) LocalSend                   35) Nextcloud Desktop
-   36) Proton VPN                  37) WireGuard VPN & Tools (wgcf/vortix)
-   38) OpenVPN & NM Plugin         43) OneDrive & Google Drive Sync Suite
-   50) Motrix & Varia Downloaders  51) Ente Auth (2FA Authenticator)
-   52) CopyQ Clipboard Manager     53) Switcheroo (HEIC Image Converter)
+    printf '\n  %b[Media, Audio & Streaming]%b\n' "$YELLOW" "$NC"
+    printf '  %s  %s\n' "$(format_item 28 "Spotify")" "$(format_item 29 "VLC Media Player")"
+    printf '  %s  %s\n' "$(format_item 30 "mpv Player & GStreamer")" "$(format_item 31 "OBS Studio")"
+    printf '  %s  %s\n' "$(format_item 32 "Parsec Game Streaming")" "$(format_item 33 "NoiseTorch & Pavucontrol")"
 
-  [Desktop Customization, KDE Apps, CLI, Cleaners & PC Optimizer]
-   39) Wallpaper Engine KDE6       40) KDE Apps (Kate/Okular/Ark/PartMgr)
-   41) Homebrew (fastfetch/gh/gemini) 42) CLI Suite (paru/btop/rg/tmux/zsh)
-   44) PC Workstation Optimizer    54) Warehouse & Flatseal (App Cleaners)
+    printf '\n  %b[Networking, VPN, Cloud & Utilities]%b\n' "$YELLOW" "$NC"
+    printf '  %s  %s\n' "$(format_item 34 "LocalSend")" "$(format_item 35 "Nextcloud Desktop")"
+    printf '  %s  %s\n' "$(format_item 36 "Proton VPN")" "$(format_item 37 "WireGuard VPN & Tools")"
+    printf '  %s  %s\n' "$(format_item 38 "OpenVPN & NM Plugin")" "$(format_item 43 "OneDrive & GDrive Sync")"
+    printf '  %s  %s\n' "$(format_item 50 "Motrix & Varia Downloaders")" "$(format_item 51 "Ente Auth (2FA)")"
+    printf '  %s  %s\n' "$(format_item 52 "CopyQ Clipboard Manager")" "$(format_item 53 "Switcheroo (HEIC Conv)")"
 
-  [A] Install ALL Applications & Tools (1..55)
-  [0] Cancel / Exit
-===================================================================
-EOF
-    printf 'Enter app numbers separated by space or comma (e.g. 2, 15, 37, 45, 48 or A for all): '
+    printf '\n  %b[Desktop, KDE Apps, CLI, Cleaners & PC Optimizer]%b\n' "$YELLOW" "$NC"
+    printf '  %s  %s\n' "$(format_item 39 "Wallpaper Engine KDE6")" "$(format_item 40 "KDE Apps (Kate/Okular/Ark)")"
+    printf '  %s  %s\n' "$(format_item 41 "Homebrew (fastfetch/gh)")" "$(format_item 42 "CLI Suite (paru/btop/rg)")"
+    printf '  %s  %s\n' "$(format_item 44 "PC Workstation Optimizer")" "$(format_item 54 "Warehouse & Flatseal")"
+
+    printf '\n%b------------------------------------------------------------------------------%b\n' "$CYAN" "$NC"
+    printf '  %bInstall:%b   2, 15, 45  or  1-5      |  %b[A]%b  Install ALL (1..55)\n' "$GREEN" "$NC" "$GREEN" "$NC"
+    printf '  %bUninstall:%b u 15, 45   or  -15 -45  |  %b[U]%b  Interactive Uninstall  |  %b[UA]%b Uninstall ALL\n' "$RED" "$NC" "$RED" "$NC" "$RED" "$NC"
+    printf '  %bTools:%b     %b[C]%b Clean Unused Caches |  %b[0]%b  Back / Exit\n' "$YELLOW" "$NC" "$YELLOW" "$NC" "$DIM" "$NC"
+    printf '%b==============================================================================%b\n' "$CYAN" "$NC"
+    printf 'Toolbox Command: '
+}
+
+trim_ws() {
+    local s=$1
+    s="${s#"${s%%[![:space:]]*}"}"
+    s="${s%"${s##*[![:space:]]}"}"
+    printf '%s' "$s"
+}
+
+expand_id_tokens() {
+    local token start end i
+    for token in "$@"; do
+        token="${token//,/}"
+        [[ -n "$token" ]] || continue
+        if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+            start="${BASH_REMATCH[1]}"
+            end="${BASH_REMATCH[2]}"
+            if (( start <= end )); then
+                for (( i = start; i <= end; i++ )); do
+                    printf '%s\n' "$i"
+                done
+            else
+                for (( i = start; i >= end; i-- )); do
+                    printf '%s\n' "$i"
+                done
+            fi
+        elif [[ "$token" =~ ^[0-9]+$ ]]; then
+            printf '%s\n' "$token"
+        else
+            printf 'WARNING: Ignoring invalid selection token: %s\n' "$token" >&2
+        fi
+    done
+}
+
+parse_and_run_selection() {
+    local mode=$1
+    local raw_input=$2
+    local normalized_input
+    local selected_tokens=()
+
+    normalized_input="${raw_input//,/ }"
+    IFS=$' \t' read -r -a selected_tokens <<< "$normalized_input"
+    if (( ${#selected_tokens[@]} == 0 )); then
+        return 0
+    fi
+
+    if [[ "$mode" == "auto" ]]; then
+        local tok
+        for tok in "${selected_tokens[@]}"; do
+            [[ -n "$tok" ]] || continue
+            if [[ "$tok" == -* ]]; then
+                run_action_on_tokens "uninstall" "${tok#-}"
+            else
+                run_action_on_tokens "install" "$tok"
+            fi
+        done
+    else
+        run_action_on_tokens "$mode" "${selected_tokens[@]}"
+    fi
+}
+
+run_action_on_tokens() {
+    local mode=$1
+    shift
+    local id
+    while IFS= read -r id; do
+        [[ -n "$id" ]] || continue
+        if [[ "$mode" == "uninstall" ]]; then
+            uninstall_by_id "$id"
+        else
+            install_by_id "$id"
+        fi
+    done < <(expand_id_tokens "$@")
 }
 
 # --- Main Execution ---
@@ -1082,33 +1601,82 @@ if [[ "${1:-}" == "--all" || "${1:-}" == "-a" ]]; then
     exit 0
 fi
 
+if [[ "${1:-}" == "--uninstall-all" ]]; then
+    uninstall_all_apps
+    exit 0
+fi
+
+if [[ "${1:-}" == "--uninstall" || "${1:-}" == "-u" || "${1:-}" == "--remove" ]]; then
+    shift
+    if (( $# == 0 )); then
+        die "Specify app numbers or ranges to uninstall (e.g. --uninstall 15 45 or --uninstall 1-5)"
+    fi
+    run_action_on_tokens "uninstall" "$@"
+    log "Selected applications uninstalled"
+    exit 0
+fi
+
 if (( $# > 0 )); then
     for arg in "$@"; do
-        install_by_id "$arg"
+        if [[ "$arg" == -* ]]; then
+            run_action_on_tokens "uninstall" "${arg#-}"
+        else
+            run_action_on_tokens "install" "$arg"
+        fi
     done
     exit 0
 fi
 
-show_tools_menu
-IFS= read -r user_selection
+while true; do
+    refresh_installed_cache
+    show_tools_menu
+    IFS= read -r user_selection || break
+    user_selection="$(trim_ws "$user_selection")"
+    lower_selection="$(printf '%s' "$user_selection" | tr '[:upper:]' '[:lower:]')"
 
-if [[ -z "$user_selection" || "$user_selection" =~ ^[0qQ]$ ]]; then
-    printf '\nCancelled application installation.\n'
-    exit 0
-fi
+    case "$lower_selection" in
+        ""|0|q|quit|exit)
+            printf '\nExiting Ghost Toolbox App Manager.\n'
+            break
+            ;;
+        a|all)
+            install_all_apps
+            ;;
+        ua|uninstall-all|remove-all)
+            printf 'Are you sure you want to uninstall ALL 55 managed apps? [y/N]: '
+            IFS= read -r confirm_ua || confirm_ua=""
+            if [[ "$confirm_ua" =~ ^[yY]([eE][sS])?$ ]]; then
+                uninstall_all_apps
+            else
+                printf 'Cancelled Uninstall ALL.\n'
+            fi
+            ;;
+        c|clean)
+            clean_unused_packages
+            ;;
+        u|uninstall|r|remove)
+            printf 'Enter app numbers or ranges to UNINSTALL (e.g. 15, 45 or 1-5): '
+            IFS= read -r uninstall_input || uninstall_input=""
+            uninstall_input="$(trim_ws "$uninstall_input")"
+            if [[ -n "$uninstall_input" ]]; then
+                parse_and_run_selection "uninstall" "$uninstall_input"
+            fi
+            ;;
+        u\ *|uninstall\ *|r\ *|remove\ *)
+            rest_input="${user_selection#*[[:space:]]}"
+            parse_and_run_selection "uninstall" "$rest_input"
+            ;;
+        i\ *|install\ *)
+            rest_input="${user_selection#*[[:space:]]}"
+            parse_and_run_selection "install" "$rest_input"
+            ;;
+        *)
+            parse_and_run_selection "auto" "$user_selection"
+            ;;
+    esac
 
-if [[ "$user_selection" =~ ^[aA]([lL][lL])?$ ]]; then
-    install_all_apps
-    exit 0
-fi
-
-# Replace commas with spaces and iterate over each selected number
-normalized_selection="${user_selection//,/ }"
-IFS=' ' read -r -a selected_ids <<< "$normalized_selection"
-
-for id in "${selected_ids[@]}"; do
-    [[ -n "$id" ]] || continue
-    install_by_id "$id"
+    if [[ -t 0 ]]; then
+        printf '\nAction completed. Press Enter to return to Toolbox...'
+        IFS= read -r || true
+    fi
 done
-
-log "Selected applications finished installing"
