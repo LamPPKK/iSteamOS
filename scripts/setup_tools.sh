@@ -218,7 +218,7 @@ configure_chrome_password_store() {
     install_config "$flags_file" < "$updated_file"
 }
 
-# --- Individual App & Tool Installers (1..42) ---
+# --- Individual App & Tool Installers (1..44) ---
 
 install_chrome() {
     log "Installing or updating Google Chrome"
@@ -283,12 +283,12 @@ install_antigravity() {
             cp "$local_logo" "$HOME/.local/share/icons/hicolor/512x512/apps/antigravity-ide.png"
         fi
 
-        cat <<'EOF' > "$HOME/.local/share/applications/antigravity-ide.desktop"
+        cat <<EOF > "$HOME/.local/share/applications/antigravity-ide.desktop"
 [Desktop Entry]
 Name=Antigravity IDE
 Comment=AI-powered IDE by Google
 GenericName=Text Editor
-Exec=/home/deck/.local/share/antigravity-ide/antigravity-ide %F
+Exec=$HOME/.local/bin/antigravity-ide %F
 Icon=antigravity-ide
 Type=Application
 StartupNotify=true
@@ -299,7 +299,7 @@ Actions=new-empty-window;
 
 [Desktop Action new-empty-window]
 Name=New Empty Window
-Exec=/home/deck/.local/share/antigravity-ide/antigravity-ide --new-window %F
+Exec=$HOME/.local/bin/antigravity-ide --new-window %F
 Icon=antigravity-ide
 EOF
         chmod +x "$HOME/.local/share/applications/antigravity-ide.desktop"
@@ -325,9 +325,11 @@ EOF
 
     for bin_dir in "$HOME/.local/bin" "$HOME/.gemini/bin"; do
         if [[ -d "$bin_dir" ]] && ! grep -Fq "$bin_dir" "$shell_rc" 2>/dev/null; then
+            # shellcheck disable=SC2016
             printf '\nexport PATH="%s:$PATH"\n' "$bin_dir" >> "$shell_rc"
         fi
         if [[ -d "$bin_dir" ]] && [[ -f "$HOME/.bash_profile" ]] && ! grep -Fq "$bin_dir" "$HOME/.bash_profile" 2>/dev/null; then
+            # shellcheck disable=SC2016
             printf '\nexport PATH="%s:$PATH"\n' "$bin_dir" >> "$HOME/.bash_profile"
         fi
         if [[ -d "$bin_dir" && ":$PATH:" != *":$bin_dir:"* ]]; then
@@ -498,13 +500,19 @@ install_beeper() {
     local beeper_bin="$beeper_dir/Beeper.AppImage"
     mkdir -p "$beeper_dir" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons"
 
-    if [[ -f "$HOME/Downloads/Beeper"*".AppImage" ]]; then
-        local existing_beeper
-        existing_beeper="$(ls -t "$HOME/Downloads/Beeper"*.AppImage 2>/dev/null | head -n 1 || true)"
-        if [[ -n "$existing_beeper" ]]; then
-            cp -f "$existing_beeper" "$beeper_bin"
-            chmod +x "$beeper_bin"
+    local existing_beeper=""
+    local candidate
+    for candidate in "$HOME/Downloads"/Beeper*.AppImage; do
+        if [[ -f "$candidate" ]]; then
+            if [[ -z "$existing_beeper" || "$candidate" -nt "$existing_beeper" ]]; then
+                existing_beeper="$candidate"
+            fi
         fi
+    done
+
+    if [[ -n "$existing_beeper" ]]; then
+        cp -f -- "$existing_beeper" "$beeper_bin"
+        chmod +x "$beeper_bin"
     elif [[ ! -f "$beeper_bin" ]]; then
         printf 'Downloading Beeper AppImage...\n'
         curl -fsSL -L "https://api.beeper.com/desktop/download/linux/x64/stable/com.automattic.beeper.desktop" -o "$beeper_bin" || true
@@ -698,7 +706,7 @@ install_wallpaper_engine() {
     local plasma_applet_rc="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
     local steam_workshop_path="$HOME/.local/share/Steam/steamapps/workshop/content/431960"
     if [[ -d "$steam_workshop_path" && -f "$plasma_applet_rc" ]]; then
-        sed -i 's|steamLibraryPath=file:///home/deck/.steam/steam|steamLibraryPath=file:///home/deck/.local/share/Steam|g' "$plasma_applet_rc" 2>/dev/null || true
+        sed -i "s|steamLibraryPath=file://${HOME}/.steam/steam|steamLibraryPath=file://${HOME}/.local/share/Steam|g" "$plasma_applet_rc" 2>/dev/null || true
     fi
 }
 

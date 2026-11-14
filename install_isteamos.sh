@@ -2,13 +2,13 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+readonly REPO_URL="${ISTEAMOS_REPO_URL:-https://github.com/LamPPKK/iSteamOS}"
+readonly REPO_BRANCH="${ISTEAMOS_REPO_BRANCH:-main}"
+readonly LOG_FILE="/tmp/isteamos_install.log"
+
 readonly_changed=0
 temp_dir=""
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPT_DIR
-
-LOG_FILE="/tmp/isteamos_install.log"
-exec > >(tee -a "$LOG_FILE") 2>&1
+SCRIPT_DIR=""
 
 log() {
     printf '\n=== %s ===\n' "$*"
@@ -17,6 +17,14 @@ log() {
 die() {
     printf 'ERROR: %s\n' "$*" >&2
     exit 1
+}
+
+show_usage() {
+    local prog="install_isteamos.sh"
+    if [[ -n "${BASH_SOURCE[0]:-}" && -e "${BASH_SOURCE[0]}" ]]; then
+        prog="$(basename "${0:-install_isteamos.sh}")"
+    fi
+    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$prog"
 }
 
 restore_readonly() {
@@ -38,8 +46,7 @@ cleanup() {
 
     if (( readonly_changed )); then
         printf '\nRestoring SteamOS readonly mode after an error...\n' >&2
-        sudo steamos-readonly enable
-        if (( $? != 0 && exit_code == 0 )); then
+        if ! sudo steamos-readonly enable && (( exit_code == 0 )); then
             exit_code=1
         fi
     fi
@@ -60,12 +67,52 @@ disable_readonly_if_needed() {
 
     readonly_status="$(sudo steamos-readonly status 2>&1 || true)"
     if grep -qi 'enabled' <<< "$readonly_status"; then
-        log "Disabling SteamOS readonly mode temporarily"
+        log "Temporarily disabling SteamOS readonly mode"
         sudo steamos-readonly disable
         readonly_changed=1
     elif ! grep -qi 'disabled' <<< "$readonly_status"; then
         die "Could not determine SteamOS readonly status: $readonly_status"
     fi
+}
+
+ensure_repo_files() {
+    local self_dir=""
+    if [[ -n "${BASH_SOURCE[0]:-}" && -e "${BASH_SOURCE[0]}" ]]; then
+        self_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+        if [[ -d "$self_dir/scripts" && -f "$self_dir/scripts/setup_tools.sh" ]]; then
+            SCRIPT_DIR="$self_dir"
+            readonly SCRIPT_DIR
+            return 0
+        fi
+    fi
+
+    log "Bootstrapping iSteamOS repository from $REPO_URL ($REPO_BRANCH)"
+    local repo_dir="$temp_dir/repo"
+    if command -v git >/dev/null 2>&1; then
+        git clone --depth 1 --branch "$REPO_BRANCH" "${REPO_URL}.git" "$repo_dir"
+        SCRIPT_DIR="$repo_dir"
+    else
+        require_command tar
+        local archive="$temp_dir/iSteamOS.tar.gz"
+        curl -fsSL "${REPO_URL}/archive/refs/heads/${REPO_BRANCH}.tar.gz" -o "$archive"
+        tar -xzf "$archive" -C "$temp_dir"
+        SCRIPT_DIR="$temp_dir/iSteamOS-${REPO_BRANCH}"
+        if [[ ! -d "$SCRIPT_DIR" ]]; then
+            local extracted
+            for extracted in "$temp_dir"/iSteamOS-*; do
+                if [[ -d "$extracted" ]]; then
+                    SCRIPT_DIR="$extracted"
+                    break
+                fi
+            done
+        fi
+    fi
+
+    [[ -d "$SCRIPT_DIR/scripts" && -f "$SCRIPT_DIR/scripts/setup_tools.sh" ]] || \
+        die "Failed to bootstrap iSteamOS helper scripts."
+
+    chmod +x "$SCRIPT_DIR/install_isteamos.sh" "$SCRIPT_DIR"/scripts/*.sh
+    readonly SCRIPT_DIR
 }
 
 setup_tools() {
@@ -89,7 +136,8 @@ setup_decky_components() {
     local legacy_gamescope_config="$temp_dir/gamescope.conf.legacy"
     printf 'GAMESCOPE_FORCE_HDR=0\n' > "$legacy_gamescope_config"
     if [[ -f "$gamescope_config" ]] && cmp -s "$gamescope_config" "$legacy_gamescope_config"; then
-        local gamescope_backup="${gamescope_config}.bak.$(date +%Y%m%d-%H%M%S)"
+        local gamescope_backup
+        gamescope_backup="${gamescope_config}.bak.$(date +%Y%m%d-%H%M%S)"
         mv -- "$gamescope_config" "$gamescope_backup"
         printf 'Moved unsupported legacy Gamescope setting to %s\n' "$gamescope_backup"
     fi
@@ -120,7 +168,7 @@ run_system_doctor() {
 }
 
 run_core_handheld_setup() {
-    log "STARTING CORE HANDHELD SETUP (Fix Steam VN + Unikey + Decky)"
+    log "STARTING CORE HANDHELD SETUP (WARP/DoT + Unikey + Decky)"
 
     setup_cloudflare_warp_and_dns
     setup_fcitx5_unikey
@@ -129,7 +177,7 @@ run_core_handheld_setup() {
     log "CORE HANDHELD SETUP COMPLETED"
     printf '%s\n' \
         "Core handheld components installed and configured:" \
-        "  • Fix Steam Vietnam (DNS-over-TLS + Cloudflare WARP WireGuard + FB Split-Tunnel)" \
+        "  • Network & ISP Bypass (DNS-over-TLS + Cloudflare WARP WireGuard + Meta Split-Tunnel)" \
         "  • Fcitx5-Unikey Vietnamese Input (Telex Unicode + Wayland autostart)" \
         "  • Decky Loader + SimpleDeckyTDP + DeckyWARP"
 }
@@ -138,18 +186,18 @@ show_menu() {
     clear 2>/dev/null || true
     cat <<'EOF'
 ===================================================================
-       iSteamOS – SteamOS to Full PC & Handheld Toolkit
+       iSteamOS - SteamOS to Full PC & Handheld Toolkit
 ===================================================================
-  [1] Core Handheld Setup (Fix Steam VN + Unikey + Decky ONLY)
-      • Cloudflare WARP (WireGuard + FB Split-Tunnel) & DNS-over-TLS
+  [1] Core Handheld Setup (Network Fix + Unikey + Decky ONLY)
+      • Cloudflare WARP (WireGuard + Meta Split-Tunnel) & DNS-over-TLS
       • Fcitx5-Unikey Vietnamese Input (Autostart & Preconfigured)
       • Decky Loader + SimpleDeckyTDP (Ryzen Z1 / Handhelds) + DeckyWARP
 
-  [2] Fix Steam, LinkedIn & Facebook Messenger in Vietnam Only
+  [2] Network, DNS-over-TLS & Cloudflare WARP Split-Tunnel Only
       • systemd-resolved DoT (1.1.1.1 / 8.8.8.8) + Valid Symlink
       • WARP WireGuard tunnel_only + Direct Meta/Facebook Split-Tunnel
 
-  [3] Install Vietnamese IME Only (Fcitx5 + Unikey)
+  [3] Install Vietnamese Input Method Only (Fcitx5 + Unikey)
       • Install packages, autostart on boot, Telex Unicode & KWin integration
 
   [4] Install Decky Components & TDP Control Only
@@ -168,7 +216,7 @@ show_menu() {
   [6] PC Workstation & System Optimizer (Use SteamOS Like a Full PC)
       • Kernel, ZRAM Swappiness, IDE File-Watchers (inotify) & TCP BBR Network
       • SteamOS 5GB Rootfs (/) Space Cleaner & Pacman ParallelDownloads=10
-      • Rootless Podman & Distrobox on /home (~300GB partition)
+      • Rootless Podman & Distrobox on /home (~300GB+ partition)
       • Boot Mode Switcher (Desktop PC vs Gaming Mode), KWallet6 & CUPS Printer
 
   [7] Setup Cloud Storage Sync (Microsoft OneDrive & Google Drive)
@@ -176,8 +224,8 @@ show_menu() {
       • Google Drive: KIO-GDrive (Dolphin Native), Rclone & Rclone Browser Qt6
 
   [8] System Doctor & PC Mode Health Check (Diagnostics Dashboard)
-      • Check CPU/RAM/ZRAM, Disk (/ vs /home), TCP BBR, WARP/DNS/Steam/FB,
-        Cloud Sync, Dev Containers, Unikey, Decky & Printer Services
+      • Check CPU/RAM/ZRAM, Disk (/ vs /home), TCP BBR, WARP/DNS/Connectivity,
+        Cloud Sync, Dev Containers, Fcitx5, Decky & Printer Services
 
   [9] Full SteamOS-to-PC Transformation (Core + PC Optimizer + Cloud + All Apps)
 
@@ -187,96 +235,108 @@ EOF
     printf 'Please enter your choice [0-9]: '
 }
 
-# --- Main Entrypoint ---
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$(basename "$0")"
-    exit 0
-fi
+main() {
+    local had_cli_args=$#
+    local action="${1:-}"
 
-(( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
+    if [[ "$action" == "--help" || "$action" == "-h" ]]; then
+        show_usage
+        exit 0
+    fi
 
-for required_command in sudo steamos-devmode steamos-readonly pacman flatpak curl mktemp grep sha256sum; do
-    require_command "$required_command"
-done
+    if [[ ! -t 0 ]] && (: </dev/tty) 2>/dev/null; then
+        exec </dev/tty
+    fi
 
-if [[ "${1:-}" != "--doctor" && "${1:-}" != "-8" ]]; then
-    sudo -v
-fi
-temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/isteamos.XXXXXX")"
+    exec > >(tee -a "$LOG_FILE") 2>&1
 
-action="${1:-}"
+    (( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
 
-if [[ -z "$action" ]]; then
-    show_menu
-    read -r choice
-    case "$choice" in
-        1) action="--core" ;;
-        2) action="--steam-fix" ;;
-        3) action="--unikey" ;;
-        4) action="--decky" ;;
-        5) action="--tools" ;;
-        6) action="--pc-mode" ;;
-        7) action="--cloud-sync" ;;
-        8) action="--doctor" ;;
-        9) action="--all" ;;
-        0|q|Q)
-            printf '\nExiting without changes.\n'
+    for required_command in sudo steamos-devmode steamos-readonly pacman flatpak curl mktemp grep sha256sum; do
+        require_command "$required_command"
+    done
+
+    if [[ "$action" != "--doctor" && "$action" != "--status" && "$action" != "-8" ]]; then
+        sudo -v
+    fi
+
+    temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/isteamos.XXXXXX")"
+    ensure_repo_files
+
+    if [[ -z "$action" ]]; then
+        show_menu
+        read -r choice
+        case "$choice" in
+            1) action="--core" ;;
+            2) action="--steam-fix" ;;
+            3) action="--unikey" ;;
+            4) action="--decky" ;;
+            5) action="--tools" ;;
+            6) action="--pc-mode" ;;
+            7) action="--cloud-sync" ;;
+            8) action="--doctor" ;;
+            9) action="--all" ;;
+            0|q|Q)
+                printf '\nExiting without changes.\n'
+                exit 0
+                ;;
+            *)
+                printf '\nInvalid choice: %s\n' "$choice" >&2
+                exit 1
+                ;;
+        esac
+    fi
+
+    case "$action" in
+        --core|-1)
+            run_core_handheld_setup
+            ;;
+        --all|--full-pc|-9)
+            run_core_handheld_setup
+            setup_pc_workstation_mode --all
+            setup_cloud_sync --all
+            setup_tools --all
+            run_system_doctor
+            ;;
+        --steam-fix|--warp|-2)
+            setup_cloudflare_warp_and_dns
+            ;;
+        --unikey|-3)
+            setup_fcitx5_unikey
+            ;;
+        --decky|-4)
+            setup_decky_components
+            ;;
+        --tools|--apps|-5)
+            shift || true
+            setup_tools "$@"
+            ;;
+        --pc-mode|--pc|--optimize|-6)
+            shift || true
+            setup_pc_workstation_mode "$@"
+            ;;
+        --cloud-sync|--cloud|-7)
+            shift || true
+            setup_cloud_sync "$@"
+            ;;
+        --doctor|--status|-8)
+            run_system_doctor
+            ;;
+        --help|-h)
+            show_usage
             exit 0
             ;;
         *)
-            printf '\nInvalid choice: %s\n' "$choice" >&2
+            printf 'Unknown option: %s\n' "$action" >&2
+            show_usage
             exit 1
             ;;
     esac
-fi
 
-case "$action" in
-    --core|-1)
-        run_core_handheld_setup
-        ;;
-    --all|--full-pc|-9)
-        run_core_handheld_setup
-        setup_pc_workstation_mode --all
-        setup_cloud_sync --all
-        setup_tools --all
-        run_system_doctor
-        ;;
-    --steam-fix|--warp|-2)
-        setup_cloudflare_warp_and_dns
-        ;;
-    --unikey|-3)
-        setup_fcitx5_unikey
-        ;;
-    --decky|-4)
-        setup_decky_components
-        ;;
-    --tools|--apps|-5)
-        shift || true
-        setup_tools "$@"
-        ;;
-    --pc-mode|--pc|--optimize|-6)
-        shift || true
-        setup_pc_workstation_mode "$@"
-        ;;
-    --cloud-sync|--cloud|-7)
-        shift || true
-        setup_cloud_sync "$@"
-        ;;
-    --doctor|--status|-8)
-        run_system_doctor
-        ;;
-    --help|-h)
-        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$(basename "$0")"
-        exit 0
-        ;;
-    *)
-        printf 'Unknown option: %s\n' "$action" >&2
-        printf 'Usage: %s [--core | --steam-fix | --unikey | --decky | --tools | --pc-mode | --cloud-sync | --doctor | --all]\n' "$(basename "$0")"
-        exit 1
-        ;;
-esac
+    if [[ -t 0 ]] && (( had_cli_args == 0 )); then
+        printf '\nOperation finished successfully. Press Enter to close...\n'
+        read -r
+    fi
+}
 
-if [[ -t 0 && -z "${1:-}" ]]; then
-    printf '\nOperation finished successfully. Press Enter to close...\n'
-    read -r
-fi
+main "$@"

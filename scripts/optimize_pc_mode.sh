@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==============================================================================
 # Module: SteamOS to Full PC Workstation Optimizer (optimize_pc_mode.sh)
 # Description: Transforms SteamOS into a high-performance daily-driver PC:
@@ -10,7 +10,8 @@
 #   5. Office Printing (CUPS + PDF Printer) & LAN Discovery (Avahi mDNS / SSH)
 # ==============================================================================
 
-set -e
+set -Eeuo pipefail
+IFS=$'\n\t'
 
 GREEN='\033[1;32m'
 BLUE='\033[1;34m'
@@ -19,19 +20,49 @@ CYAN='\033[1;36m'
 RED='\033[1;31m'
 NC='\033[0m'
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_ok()   { echo -e "${GREEN}[OK]${NC} $1"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-log_err()  { echo -e "${RED}[ERROR]${NC} $1"; }
+readonly_changed=0
 
-echo -e "${CYAN}======================================================================${NC}"
-echo -e "${GREEN}   [PC Workstation] SteamOS to Full PC Optimizer & System Tuner       ${NC}"
-echo -e "${CYAN}======================================================================${NC}"
-echo ""
+log_info() { printf '%b[INFO]%b %s\n' "$BLUE" "$NC" "$1"; }
+log_ok()   { printf '%b[OK]%b %s\n' "$GREEN" "$NC" "$1"; }
+log_warn() { printf '%b[WARN]%b %s\n' "$YELLOW" "$NC" "$1"; }
+log_err()  { printf '%b[ERROR]%b %s\n' "$RED" "$NC" "$1" >&2; }
 
-unlock_steamos() {
-    if command -v steamos-readonly &>/dev/null; then
-        sudo steamos-readonly disable 2>/dev/null || true
+restore_readonly() {
+    if (( readonly_changed )); then
+        log_info "Restoring SteamOS readonly mode..."
+        sudo steamos-readonly enable
+        readonly_changed=0
+    fi
+}
+
+cleanup() {
+    local exit_code=$?
+    trap - EXIT
+    set +e
+
+    if (( readonly_changed )); then
+        printf '\nRestoring SteamOS readonly mode after exit...\n' >&2
+        if ! sudo steamos-readonly enable && (( exit_code == 0 )); then
+            exit_code=1
+        fi
+    fi
+
+    exit "$exit_code"
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+disable_readonly_if_needed() {
+    if command -v steamos-readonly >/dev/null 2>&1; then
+        local readonly_status
+        readonly_status="$(sudo steamos-readonly status 2>&1 || true)"
+        if grep -qi 'enabled' <<< "$readonly_status"; then
+            log_info "Temporarily disabling SteamOS readonly mode..."
+            sudo steamos-readonly disable
+            readonly_changed=1
+        fi
     fi
 }
 
@@ -40,13 +71,13 @@ unlock_steamos() {
 # ------------------------------------------------------------------------------
 tune_kernel_ram_network() {
     log_info "Applying PC Workstation Kernel, ZRAM, IDE File-Watcher & TCP BBR tuning..."
-    unlock_steamos
+    disable_readonly_if_needed
 
     sudo mkdir -p /etc/modules-load.d /etc/sysctl.d
     echo "tcp_bbr" | sudo tee /etc/modules-load.d/isteamos-bbr.conf >/dev/null
     sudo modprobe tcp_bbr 2>/dev/null || true
 
-    sudo tee /etc/sysctl.d/99-isteamos-pc.conf >/dev/null << 'EOF'
+    sudo tee /etc/sysctl.d/99-isteamos-pc.conf >/dev/null <<'EOF'
 # ==============================================================================
 # iSteamOS PC Workstation & Gaming Optimization Profile
 # ==============================================================================
@@ -74,6 +105,7 @@ net.core.wmem_max = 16777216
 EOF
 
     sudo sysctl --system >/dev/null 2>&1 || true
+    restore_readonly
     log_ok "Kernel parameters applied (TCP BBR, ZRAM swappiness=100, inotify=524288)."
 }
 
@@ -82,10 +114,10 @@ EOF
 # ------------------------------------------------------------------------------
 optimize_rootfs_and_pacman() {
     log_info "Optimizing SteamOS 5GB Root (/) partition space & Pacman configuration..."
-    unlock_steamos
+    disable_readonly_if_needed
 
     # Enable Color and ParallelDownloads = 10 in /etc/pacman.conf
-    if [ -f /etc/pacman.conf ]; then
+    if [[ -f /etc/pacman.conf ]]; then
         sudo sed -i 's/^#Color/Color/' /etc/pacman.conf
         if grep -q "^#ParallelDownloads" /etc/pacman.conf; then
             sudo sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 10/' /etc/pacman.conf
@@ -100,10 +132,11 @@ optimize_rootfs_and_pacman() {
     # Clean cached package downloads & temp build dirs
     sudo pacman -Sc --noconfirm >/dev/null 2>&1 || true
     rm -rf /tmp/yay-* /tmp/pamac-* 2>/dev/null || true
+    restore_readonly
 
     local root_avail home_avail
-    root_avail=$(df -h / | awk 'NR==2 {print $4 " free (" $5 " used)"}')
-    home_avail=$(df -h /home | awk 'NR==2 {print $4 " free (" $5 " used)"}')
+    root_avail="$(df -h / | awk 'NR==2 {print $4 " free (" $5 " used)"}')"
+    home_avail="$(df -h /home | awk 'NR==2 {print $4 " free (" $5 " used)"}')"
     log_ok "Storage optimized -> Root (/): ${root_avail} | Home (/home): ${home_avail}"
 }
 
@@ -112,7 +145,7 @@ optimize_rootfs_and_pacman() {
 # ------------------------------------------------------------------------------
 setup_distrobox_podman() {
     log_info "Configuring Rootless Podman & Distrobox (stored on /home to save / space)..."
-    unlock_steamos
+    disable_readonly_if_needed
 
     local current_user="${SUDO_USER:-$USER}"
     sudo touch /etc/subuid /etc/subgid
@@ -122,21 +155,22 @@ setup_distrobox_podman() {
     if ! grep -q "^${current_user}:" /etc/subgid 2>/dev/null; then
         echo "${current_user}:100000:65536" | sudo tee -a /etc/subgid >/dev/null
     fi
+    restore_readonly
 
     mkdir -p "$HOME/.config/containers" "$HOME/.local/share/containers/storage"
-    cat << EOF > "$HOME/.config/containers/storage.conf"
+    cat <<EOF > "$HOME/.config/containers/storage.conf"
 [storage]
 driver = "overlay"
 graphroot = "$HOME/.local/share/containers/storage"
 runroot = "/run/user/$(id -u)/containers"
 EOF
 
-    cat << 'EOF' > "$HOME/.distroboxrc"
+    cat <<'EOF' > "$HOME/.distroboxrc"
 # iSteamOS Distrobox Configuration - Uses Rootless Podman on /home
 container_manager="podman"
 EOF
 
-    if command -v podman &>/dev/null; then
+    if command -v podman >/dev/null 2>&1; then
         podman system migrate 2>/dev/null || true
     fi
     log_ok "Rootless Podman & Distrobox configured on ~/.local/share/containers."
@@ -149,14 +183,14 @@ optimize_desktop_ergonomics() {
     log_info "Setting up Desktop PC Ergonomics, Boot Mode Switcher & KWallet6..."
 
     mkdir -p "$HOME/.local/bin"
-    cat << 'EOF' > "$HOME/.local/bin/isteamos-boot-mode"
-#!/bin/bash
+    cat <<'EOF' > "$HOME/.local/bin/isteamos-boot-mode"
+#!/usr/bin/env bash
 # Switch SteamOS Default Boot Mode between Desktop PC Mode and Handheld Gaming Mode
-set -e
+set -Eeuo pipefail
 MODE="${1:-status}"
 case "$MODE" in
     desktop|pc)
-        if command -v steamos-session-select &>/dev/null; then
+        if command -v steamos-session-select >/dev/null 2>&1; then
             echo "Switching current session / boot default to KDE Plasma Desktop Mode..."
             steamos-session-select plasma-x11-persistent 2>/dev/null || steamos-session-select plasma 2>/dev/null || true
             echo "[OK] Configured to boot directly into KDE Plasma Desktop Mode!"
@@ -165,7 +199,7 @@ case "$MODE" in
         fi
         ;;
     gaming|gamescope|deck)
-        if command -v steamos-session-select &>/dev/null; then
+        if command -v steamos-session-select >/dev/null 2>&1; then
             echo "Switching session / boot default back to Steam Gaming Mode..."
             steamos-session-select gamescope 2>/dev/null || true
             echo "[OK] Configured to boot into Steam Gaming Mode!"
@@ -175,7 +209,7 @@ case "$MODE" in
         ;;
     status|*)
         echo "=== iSteamOS Boot Mode Switcher ==="
-        if [ -f /etc/sddm.conf.d/zz-steamos-autologin.conf ]; then
+        if [[ -f /etc/sddm.conf.d/zz-steamos-autologin.conf ]]; then
             grep -E "Session=" /etc/sddm.conf.d/zz-steamos-autologin.conf || true
         fi
         echo "Usage:"
@@ -187,22 +221,24 @@ EOF
     chmod +x "$HOME/.local/bin/isteamos-boot-mode"
 
     # Ensure ~/.local/bin is in PATH inside ~/.bashrc
-    if [ -f "$HOME/.bashrc" ] && ! grep -q '\.local/bin' "$HOME/.bashrc"; then
+    touch "$HOME/.bashrc"
+    if ! grep -q '\.local/bin' "$HOME/.bashrc"; then
+        # shellcheck disable=SC2016
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
 
     # KWallet6 Flatpak integration so browsers persist passwords across reboots
-    if command -v flatpak &>/dev/null; then
+    if command -v flatpak >/dev/null 2>&1; then
         sudo flatpak override --filesystem=xdg-run/kwalletd:ro 2>/dev/null || true
         flatpak override --user --filesystem=xdg-run/kwalletd:ro 2>/dev/null || true
     fi
 
     # Auto-patch Emuchievements Decky Plugin Symbol crash if present
-    local emu_js="/home/deck/homebrew/plugins/Emuchievements/dist/index.js"
-    if [ -f "$emu_js" ] && grep -q 'm\[prop\]\.toString()' "$emu_js" 2>/dev/null; then
+    local emu_js="$HOME/homebrew/plugins/Emuchievements/dist/index.js"
+    if [[ -f "$emu_js" ]] && grep -q 'm\[prop\]\.toString()' "$emu_js" 2>/dev/null; then
         log_info "Applying stability patch to Decky Emuchievements plugin..."
         sudo cp "$emu_js" "${emu_js}.bak" 2>/dev/null || true
-        sudo python3 - "$emu_js" << 'PYEOF'
+        sudo python3 - "$emu_js" <<'PYEOF'
 import sys
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as f:
@@ -228,17 +264,19 @@ PYEOF
 # ------------------------------------------------------------------------------
 setup_printer_and_lan() {
     log_info "Enabling Office Printing (CUPS) & Local Network mDNS Discovery (Avahi)..."
-    unlock_steamos
+    disable_readonly_if_needed
 
-    if systemctl list-unit-files cups.service &>/dev/null; then
+    if systemctl list-unit-files cups.service >/dev/null 2>&1; then
         sudo systemctl enable --now cups.service 2>/dev/null || true
         log_ok "CUPS Printing Service enabled (ready for USB/Wi-Fi printers & PDF printing)."
     fi
 
-    if systemctl list-unit-files avahi-daemon.service &>/dev/null; then
+    if systemctl list-unit-files avahi-daemon.service >/dev/null 2>&1; then
         sudo systemctl enable --now avahi-daemon.service 2>/dev/null || true
         log_ok "Avahi mDNS Local Network Discovery enabled (.local devices & AirPrint)."
     fi
+
+    restore_readonly
 }
 
 run_all_pc_optimizations() {
@@ -247,33 +285,36 @@ run_all_pc_optimizations() {
     setup_distrobox_podman
     optimize_desktop_ergonomics
     setup_printer_and_lan
-    echo ""
-    echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${GREEN}   HOÀN TẤT TỐI ƯU HÓA STEAMOS THÀNH PC WORKSTATION!                 ${NC}"
-    echo -e "${CYAN}======================================================================${NC}"
-    echo -e " - ${GREEN}Kernel & Network:${NC} TCP BBR + FastQueue + ZRAM Swappiness=100 + IDE Watchers (524,288)"
-    echo -e " - ${GREEN}Rootfs & Pacman:${NC}  ParallelDownloads=10 + Dọn rác journal/cache bảo vệ ổ / 5GB"
-    echo -e " - ${GREEN}Dev Containers:${NC}   Rootless Podman & Distrobox lưu trên /home (~300GB trống)"
-    echo -e " - ${GREEN}Chuyển chế độ Boot:${NC} Gõ ${YELLOW}isteamos-boot-mode desktop${NC} (vào thẳng PC) hoặc ${YELLOW}gaming${NC}"
-    echo -e " - ${GREEN}Máy in & LAN:${NC}     Dịch vụ máy in CUPS & tìm kiếm mạng nội bộ Avahi đã bật"
-    echo -e "${CYAN}======================================================================${NC}"
+    printf '\n'
+    printf '%b======================================================================%b\n' "$CYAN" "$NC"
+    printf '%b   STEAMOS TO PC WORKSTATION OPTIMIZATION COMPLETED!                  %b\n' "$GREEN" "$NC"
+    printf '%b======================================================================%b\n' "$CYAN" "$NC"
+    printf ' - %bKernel & Network:%b TCP BBR + FastQueue + ZRAM Swappiness=100 + IDE Watchers (524,288)\n' "$GREEN" "$NC"
+    printf ' - %bRootfs & Pacman:%b  ParallelDownloads=10 + Journal/cache cleanup to protect 5GB / partition\n' "$GREEN" "$NC"
+    printf ' - %bDev Containers:%b   Rootless Podman & Distrobox stored on /home (~300GB+ available)\n' "$GREEN" "$NC"
+    printf ' - %bBoot Mode Switch:%b Run %bisteamos-boot-mode desktop%b (Desktop PC) or %bgaming%b (Game Mode)\n' "$GREEN" "$NC" "$YELLOW" "$NC" "$YELLOW" "$NC"
+    printf ' - %bPrinting & LAN:%b   CUPS printing service & Avahi mDNS discovery enabled\n' "$GREEN" "$NC"
+    printf '%b======================================================================%b\n' "$CYAN" "$NC"
 }
 
-if [[ "$1" == "--all" || "$1" == "--auto" ]]; then
+printf '%b======================================================================%b\n' "$CYAN" "$NC"
+printf '%b   [PC Workstation] SteamOS to Full PC Optimizer & System Tuner       %b\n' "$GREEN" "$NC"
+printf '%b======================================================================%b\n\n' "$CYAN" "$NC"
+
+if [[ "${1:-}" == "--all" || "${1:-}" == "--auto" ]]; then
     run_all_pc_optimizations
     exit 0
 fi
 
-echo -e "  ${GREEN}[1]${NC} Run All PC Workstation Optimizations (Recommended)"
-echo -e "  ${GREEN}[2]${NC} Tune Kernel, RAM/ZRAM, IDE Watchers & TCP BBR Network Only"
-echo -e "  ${GREEN}[3]${NC} Optimize 5GB Rootfs (/) Space & Pacman ParallelDownloads Only"
-echo -e "  ${GREEN}[4]${NC} Configure Rootless Podman & Distrobox on /home Only"
-echo -e "  ${GREEN}[5]${NC} Enable Office Printing (CUPS) & Local LAN Discovery (Avahi) Only"
-echo -e "  ${GREEN}[6]${NC} Switch Default Boot Mode: Boot directly into KDE Desktop PC Mode"
-echo -e "  ${GREEN}[7]${NC} Switch Default Boot Mode: Boot into Steam Handheld Gaming Mode"
-echo -e "  ${GREEN}[8]${NC} Enable SSH Server (sshd) for Remote PC Access"
-echo -e "  ${GREEN}[0]${NC} Back / Exit"
-echo ""
+printf '  %b[1]%b Run All PC Workstation Optimizations (Recommended)\n' "$GREEN" "$NC"
+printf '  %b[2]%b Tune Kernel, RAM/ZRAM, IDE Watchers & TCP BBR Network Only\n' "$GREEN" "$NC"
+printf '  %b[3]%b Optimize 5GB Rootfs (/) Space & Pacman ParallelDownloads Only\n' "$GREEN" "$NC"
+printf '  %b[4]%b Configure Rootless Podman & Distrobox on /home Only\n' "$GREEN" "$NC"
+printf '  %b[5]%b Enable Office Printing (CUPS) & Local LAN Discovery (Avahi) Only\n' "$GREEN" "$NC"
+printf '  %b[6]%b Switch Default Boot Mode: Boot directly into KDE Desktop PC Mode\n' "$GREEN" "$NC"
+printf '  %b[7]%b Switch Default Boot Mode: Boot into Steam Handheld Gaming Mode\n' "$GREEN" "$NC"
+printf '  %b[8]%b Enable SSH Server (sshd) for Remote PC Access\n' "$GREEN" "$NC"
+printf '  %b[0]%b Back / Exit\n\n' "$GREEN" "$NC"
 read -rp "Select option [0-8]: " PC_OPT
 
 case "$PC_OPT" in
@@ -291,7 +332,9 @@ case "$PC_OPT" in
         "$HOME/.local/bin/isteamos-boot-mode" gaming
         ;;
     8)
+        disable_readonly_if_needed
         sudo systemctl enable --now sshd.service
+        restore_readonly
         log_ok "SSH Server (sshd) enabled and started."
         ;;
     *)

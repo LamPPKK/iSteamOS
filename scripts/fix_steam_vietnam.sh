@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+readonly_changed=0
+
 log() {
     printf '\n=== %s ===\n' "$*"
 }
@@ -11,9 +13,36 @@ die() {
     exit 1
 }
 
+restore_readonly() {
+    if (( readonly_changed )); then
+        log "Restoring SteamOS readonly mode"
+        sudo steamos-readonly enable
+        readonly_changed=0
+    fi
+}
+
+cleanup() {
+    local exit_code=$?
+    trap - EXIT
+    set +e
+
+    if (( readonly_changed )); then
+        printf '\nRestoring SteamOS readonly mode after exit...\n' >&2
+        if ! sudo steamos-readonly enable && (( exit_code == 0 )); then
+            exit_code=1
+        fi
+    fi
+
+    exit "$exit_code"
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 (( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
 
-log "Configuring Cloudflare WARP & DNS-over-TLS Fix (Vietnam ISP Bypass)"
+log "Configuring Cloudflare WARP & DNS-over-TLS Fix (ISP Bypass)"
 
 # 1. Configure systemd-resolved with encrypted DNS-over-TLS (Cloudflare & Google DNS)
 sudo mkdir -p /etc/systemd/resolved.conf.d
@@ -57,17 +86,13 @@ if ! command -v warp-cli >/dev/null 2>&1; then
     if [[ -x "$warp_installer" ]]; then
         sudo "$warp_installer"
     elif pacman -Si cloudflare-warp-bin >/dev/null 2>&1; then
-        was_readonly=0
         if sudo steamos-readonly status 2>&1 | grep -qi 'enabled'; then
             sudo steamos-readonly disable
-            was_readonly=1
+            readonly_changed=1
         fi
 
         sudo pacman -S --needed --noconfirm cloudflare-warp-bin
-
-        if (( was_readonly )); then
-            sudo steamos-readonly enable
-        fi
+        restore_readonly
     else
         printf 'WARNING: Could not find cloudflare-warp-bin package or installer.\n'
     fi
@@ -124,7 +149,7 @@ if command -v warp-cli >/dev/null 2>&1; then
 fi
 
 printf '\n%s\n' \
-    "Steam & ISP bypass tips for Vietnam:" \
+    "Steam & ISP bypass tips:" \
     "  1. DNS is encrypted via systemd-resolved DNS-over-TLS (1.1.1.1 / 8.8.8.8)." \
     "  2. Traffic is tunneled via Cloudflare WARP (WireGuard + tunnel_only) for Steam & LinkedIn." \
     "  3. Facebook & Messenger IPv4/IPv6 ranges are excluded (Split Tunnel) for direct native speed." \

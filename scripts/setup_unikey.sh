@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+readonly_changed=0
+
 log() {
     printf '\n=== %s ===\n' "$*"
 }
@@ -11,6 +13,33 @@ die() {
     exit 1
 }
 
+restore_readonly() {
+    if (( readonly_changed )); then
+        log "Restoring SteamOS readonly mode"
+        sudo steamos-readonly enable
+        readonly_changed=0
+    fi
+}
+
+cleanup() {
+    local exit_code=$?
+    trap - EXIT
+    set +e
+
+    if (( readonly_changed )); then
+        printf '\nRestoring SteamOS readonly mode after exit...\n' >&2
+        if ! sudo steamos-readonly enable && (( exit_code == 0 )); then
+            exit_code=1
+        fi
+    fi
+
+    exit "$exit_code"
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 (( EUID != 0 )) || die "Run this script as your normal SteamOS user, not as root."
 
 log "Configuring Fcitx5 and Unikey"
@@ -18,10 +47,9 @@ log "Configuring Fcitx5 and Unikey"
 # Check if Fcitx5 or Unikey packages are missing
 if ! command -v fcitx5 >/dev/null 2>&1 || ! pacman -Q fcitx5-unikey >/dev/null 2>&1; then
     printf 'Fcitx5 or Unikey package is missing. Installing via pacman...\n'
-    was_readonly=0
     if sudo steamos-readonly status 2>&1 | grep -qi 'enabled'; then
         sudo steamos-readonly disable
-        was_readonly=1
+        readonly_changed=1
     fi
 
     sudo pacman -S --needed --noconfirm \
@@ -31,9 +59,7 @@ if ! command -v fcitx5 >/dev/null 2>&1 || ! pacman -Q fcitx5-unikey >/dev/null 2
         fcitx5-qt \
         fcitx5-unikey
 
-    if (( was_readonly )); then
-        sudo steamos-readonly enable
-    fi
+    restore_readonly
 else
     printf 'Fcitx5 and fcitx5-unikey packages are already installed.\n'
 fi
@@ -156,4 +182,3 @@ if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
 fi
 
 log "Fcitx5 and Unikey configuration verified and set to active by default"
-
