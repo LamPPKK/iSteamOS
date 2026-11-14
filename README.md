@@ -1,4 +1,4 @@
-# 🎮💻 iSteamOS – SteamOS to Full PC Workstation & Handheld Toolkit
+# 🎮💻 iSteamOS – Post Install Toolbox All in One
 
 An automated, modular post-install toolkit that transforms **SteamOS 3.x** (on Steam Deck, ROG Ally, Legion Go, Mini PCs, or Ryzen Z1 / Z1 Extreme handhelds) into a complete **PC Workstation** and optimized handheld gaming system.
 

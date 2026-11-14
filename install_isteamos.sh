@@ -186,7 +186,7 @@ show_menu() {
     clear 2>/dev/null || true
     cat <<'EOF'
 ===================================================================
-       iSteamOS - SteamOS to Full PC & Handheld Toolkit
+       iSteamOS – Post Install Toolbox All in One
 ===================================================================
   [1] Core Handheld Setup (Network Fix + Unikey + Decky ONLY)
       • Cloudflare WARP (WireGuard + Meta Split-Tunnel) & DNS-over-TLS
