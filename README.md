@@ -13,31 +13,61 @@ Open **Konsole (Terminal)** in SteamOS **Desktop Mode** and run:
 curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash
 ```
 
-### Direct CLI Execution via `curl`
-Run any profile directly without cloning the repository manually:
+---
 
-```bash
-# 1. Core Handheld Setup (Network/WARP Fix + Unikey + Decky Loader & TDP)
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --core
+## 🎯 Direct CLI Execution via `curl`
 
-# 2. Interactive Application Selector (Choose from 44 Apps & Dev Tools)
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --tools
+Run any profile directly without cloning the repository manually (each command is in its own copyable block):
 
-# 3. Install Specific Apps by Number (e.g. Edge, Zalo, WireGuard, Cloud Sync)
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --tools 2 15 37 43
+1. **Core Handheld Setup (Network/WARP Fix + Unikey + Decky Loader & TDP):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --core
+   ```
 
-# 4. PC Workstation & Kernel/ZRAM/Rootfs Optimizer
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --pc-mode --all
+2. **Network, DNS-over-TLS & Cloudflare WARP Split-Tunnel Only:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --steam-fix
+   ```
 
-# 5. Cloud Storage Sync (Microsoft OneDrive & Google Drive)
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --cloud-sync --all
+3. **Vietnamese Input Method Only (`Fcitx5 + Unikey`):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --unikey
+   ```
 
-# 6. Run System Doctor Diagnostics Dashboard
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --doctor
+4. **Decky Loader, SimpleDeckyTDP & DeckyWARP Only:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --decky
+   ```
 
-# 7. Full SteamOS-to-PC Transformation (Core + PC Optimizer + Cloud + All 44 Apps)
-curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --all
-```
+5. **Interactive Application Selector (Choose from 55 Apps & Dev Tools):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --tools
+   ```
+
+6. **Install Specific Apps by Number (e.g. Edge, Zalo, WireGuard, Teams, Remmina RDP):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --tools 2 15 37 45 48
+   ```
+
+7. **PC Workstation & Kernel/ZRAM/Rootfs Optimizer:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --pc-mode --all
+   ```
+
+8. **Cloud Storage Sync (Microsoft OneDrive & Google Drive):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --cloud-sync --all
+   ```
+
+9. **System Doctor & Diagnostics Dashboard:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --doctor
+   ```
+
+10. **Full SteamOS-to-PC Transformation (Core + PC Optimizer + Cloud + All 55 Apps):**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/LamPPKK/iSteamOS/main/install_isteamos.sh | bash -s -- --all
+    ```
 
 ---
 
@@ -59,7 +89,7 @@ chmod +x install_isteamos.sh scripts/*.sh
 | `--steam-fix` | Configure `systemd-resolved` DoT and Cloudflare WARP WireGuard split-tunnel only. |
 | `--unikey` | Install and autostart Fcitx5 + Unikey (Telex Unicode) only. |
 | `--decky` | Install Decky Loader `v3.3.1`, SimpleDeckyTDP `v1.0.7`, and DeckyWARP `v1.6.1`. |
-| `--tools [IDs...]` | Open the interactive `1..44` app selector or install specified app IDs / `--all`. |
+| `--tools [IDs...]` | Open the interactive `1..55` app selector or install specified app IDs / `--all`. |
 | `--pc-mode [--all]` | Apply PC Workstation optimizations (TCP BBR, ZRAM, `inotify`, Podman, CUPS). |
 | `--cloud-sync [--all]` | Install OneDrive & Google Drive sync tools and systemd auto-mount services. |
 | `--doctor` | Run the System Doctor health check and live connectivity diagnostics. |
@@ -122,14 +152,40 @@ Module [`scripts/setup_cloud_sync.sh`](scripts/setup_cloud_sync.sh) integrates n
 ---
 
 ### 4. Interactive Application & Developer Suite (`[5] --tools`)
-Select **`5`** (`--tools`) to install apps selectively by number (e.g., `2, 15, 37, 43`) or press **`A`** to install all **44** packages:
+Select **`5`** (`--tools`) to install apps selectively by number (e.g., `2, 15, 37, 45, 48`) or press **`A`** to install all **55** packages:
 
 - **Browsers (KWallet5/6 Keyring Sync):** `1)` Google Chrome, `2)` Microsoft Edge, `3)` Brave Browser.
-- **Development & Productivity:** `4)` Google Antigravity (IDE & CLI), `5)` Visual Studio Code, `6)` Android Studio, `7)` GitHub Desktop, `8)` Postman, `9)` Insomnia, `10)` Wireshark, `11)` draw.io, `12)` FileZilla, `13)` LibreOffice Suite, `14)` Distrobox & Podman.
-- **Communication & Remote Access:** `15)` Zalo for Linux (AppImage), `16)` LinuxViewer (UltraViewer compatible), `17)` Beeper Unified Messenger, `18)` Discord, `19)` Telegram Desktop, `20)` Viber, `21)` Signal Desktop, `22)` Slack, `23)` Zoom, `24)` OpenBubbles (iMessage), `25)` Proton Mail, `26)` Mozilla Thunderbird, `27)` KDE Connect.
+- **Development, AI & Productivity:** `4)` Google Antigravity (IDE & CLI), `5)` Visual Studio Code, `6)` Android Studio, `7)` GitHub Desktop, `8)` Postman, `9)` Insomnia, `10)` Wireshark, `11)` draw.io, `12)` FileZilla, `13)` LibreOffice Suite, `14)` Distrobox & Podman, `49)` Gittyup & GitKraken (Git GUIs), `55)` Google Gemini CLI & Desktop Web App.
+- **Communication & Remote Access:** `15)` Zalo for Linux (AppImage), `16)` LinuxViewer (UltraViewer compatible), `17)` Beeper Unified Messenger, `18)` Discord, `19)` Telegram Desktop, `20)` Viber, `21)` Signal Desktop, `22)` Slack, `23)` Zoom, `24)` OpenBubbles (iMessage), `25)` Proton Mail, `26)` Mozilla Thunderbird, `27)` KDE Connect, `45)` Teams for Linux (Microsoft Teams), `46)` Rocket.Chat Desktop, `47)` ZapZap (WhatsApp Desktop), `48)` Remmina Remote Desktop (RDP/VNC/SSH).
 - **Media, Audio & Streaming:** `28)` Spotify, `29)` VLC Media Player, `30)` mpv & GStreamer Codecs, `31)` OBS Studio, `32)` Parsec Game Streaming, `33)` NoiseTorch & Pavucontrol.
-- **Networking, VPN & Cloud:** `34)` LocalSend, `35)` Nextcloud Desktop, `36)` Proton VPN, `37)` WireGuard VPN & Tools (`wireguard-tools`, `wgcf`, `vortix`, `wireproxy`), `38)` OpenVPN & NetworkManager Plugin, `43)` OneDrive & Google Drive Cloud Sync Suite.
-- **Desktop Customization, CLI & System:** `39)` Wallpaper Engine KDE 6 Plugin, `40)` KDE Apps (Kate, Okular, Gwenview, Spectacle, Ark, Filelight, PartitionManager, Qrca, Dolphin, Konsole, KWalletManager), `41)` Homebrew (`fastfetch`, `gh`, `neofetch`), `42)` System & Dev CLI Suite (`base-devel`, `paru`, `btop`, `htop`, `ripgrep`, `fd`, `tmux`, `vim`, `fish`, `zsh`, `jq`, `7zip`, `mangohud`, `gamemode`), `44)` PC Workstation Optimizer.
+- **Networking, VPN, Cloud & Utilities:** `34)` LocalSend, `35)` Nextcloud Desktop, `36)` Proton VPN, `37)` WireGuard VPN & Tools (`wireguard-tools`, `wgcf`, `vortix`, `wireproxy`), `38)` OpenVPN & NetworkManager Plugin, `43)` OneDrive & Google Drive Cloud Sync Suite, `50)` Motrix & Varia Download Managers, `51)` Ente Auth (2FA Authenticator), `52)` CopyQ Clipboard Manager, `53)` Switcheroo Image Converter (`HEIC/HEIF` support via `libheif` & `kimageformats`).
+- **Desktop Customization, CLI, Cleaners & System:** `39)` Wallpaper Engine KDE 6 Plugin, `40)` KDE Apps (Kate, Okular, Gwenview, Spectacle, Ark, Filelight, PartitionManager, Qrca, Dolphin, Konsole, KWalletManager), `41)` Homebrew (`fastfetch`, `gh`, `neofetch`, `node`, `gemini-cli`), `42)` System & Dev CLI Suite (`base-devel`, `paru`, `btop`, `htop`, `ripgrep`, `fd`, `tmux`, `vim`, `fish`, `zsh`, `jq`, `7zip`, `mangohud`, `gamemode`), `44)` PC Workstation Optimizer, `54)` Warehouse & Flatseal (App Cleaners & Permissions).
+
+#### macOS to SteamOS App Equivalents
+| macOS App | SteamOS / Linux Equivalent in iSteamOS | Tool ID |
+| :--- | :--- | :--- |
+| `Microsoft Teams.app` | Teams for Linux (`com.github.IsmaelMartinez.teams_for_linux`) | `#45` |
+| `Rocket.Chat.app` / `Viettel Digital Workplace.app` | Rocket.Chat Desktop (`chat.rocket.RocketChat`) | `#46` |
+| `WhatsApp.app` | ZapZap WhatsApp Desktop (`com.rtosta.zapzap`) | `#47` |
+| `Windows App.app` (Remote Desktop) | Remmina Remote Desktop (`org.remmina.Remmina`) | `#48` |
+| `Sourcetree.app` | Gittyup & GitKraken (`Gittyup`, `GitKraken`) | `#49` |
+| `NeatDownloadManager.app` | Motrix & Varia Download Managers | `#50` |
+| `G2FA.app` | Ente Auth 2FA Authenticator (`io.ente.auth`) | `#51` |
+| `CopyClip.app` | CopyQ Clipboard Manager (`com.github.hluk.copyq`) | `#52` |
+| `HEIC Converter.app` | Switcheroo Image Converter + `libheif` / `kimageformats` | `#53` |
+| `Pearcleaner.app` / `DevCleaner.app` | Warehouse & Flatseal (`Warehouse`, `Flatseal`) | `#54` |
+| `Gemini.app` & `gemini-cli` | Google Gemini CLI (`gemini-cli`) + Desktop Web App | `#55` (`#41`) |
+| `EVKeyMac.app` | Fcitx5 + Unikey (Telex Unicode) | `--unikey` (`[3]`) |
+| `Cloudflare WARP.app` | `cloudflare-warp-bin` + DeckyWARP + DoT | `--steam-fix` (`[2]`) |
+| `CloudMounter.app` / `OneDrive.app` | Rclone VFS + OneDriver + OneDriveGUI + KIO-GDrive | `#43` (`--cloud-sync`) |
+| `Antigravity.app` / `Antigravity IDE.app` | Google Antigravity IDE & CLI | `#4` |
+| `Microsoft Edge.app` | Microsoft Edge (with KWallet5/6 sync) | `#2` |
+| `Zalo.app` | Zalo for Linux (AppImage) | `#15` |
+| `MacViewer.app` | LinuxViewer (UltraViewer compatible) | `#16` |
+| `Beeper Desktop.app` | Beeper Unified Messenger (AppImage) | `#17` |
+| `Discord.app` / `Telegram.app` / `Viber.app` | Discord / Telegram Desktop / Viber | `#18`, `#19`, `#20` |
+| `LibreOffice.app` / `WireGuard.app` | LibreOffice Suite / WireGuard + `wgcf` + `vortix` | `#13`, `#37` |
+| `Macs Fan Control.app` (TDP/Thermal) | SimpleDeckyTDP + Decky Loader | `--decky` (`[4]`) |
 
 ---
 

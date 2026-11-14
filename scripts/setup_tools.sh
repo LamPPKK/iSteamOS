@@ -218,7 +218,7 @@ configure_chrome_password_store() {
     install_config "$flags_file" < "$updated_file"
 }
 
-# --- Individual App & Tool Installers (1..44) ---
+# --- Individual App & Tool Installers (1..55) ---
 
 install_chrome() {
     log "Installing or updating Google Chrome"
@@ -727,7 +727,7 @@ install_kde_utilities() {
 }
 
 install_homebrew() {
-    log "Installing or updating Homebrew & CLI Tools (fastfetch, gh, neofetch)"
+    log "Installing or updating Homebrew & CLI Tools (fastfetch, gh, neofetch, node, gemini-cli)"
     local brew_bin
     brew_bin="$(command -v brew || true)"
     if [[ -z "$brew_bin" ]]; then
@@ -762,7 +762,7 @@ install_homebrew() {
     fi
 
     brew update
-    for formula in fastfetch gh neofetch; do
+    for formula in fastfetch gh neofetch node gemini-cli; do
         if brew list --formula "$formula" >/dev/null 2>&1; then
             brew upgrade "$formula" || true
         else
@@ -825,6 +825,128 @@ install_pc_workstation_optimizer() {
     fi
 }
 
+install_teams() {
+    log "Installing or updating Teams for Linux (Microsoft Teams)"
+    install_or_update_flatpak "com.github.IsmaelMartinez.teams_for_linux"
+    configure_flatpak_keyring_access "com.github.IsmaelMartinez.teams_for_linux"
+}
+
+install_rocketchat() {
+    log "Installing or updating Rocket.Chat Desktop"
+    install_or_update_flatpak "chat.rocket.RocketChat"
+    configure_flatpak_keyring_access "chat.rocket.RocketChat"
+}
+
+install_whatsapp() {
+    log "Installing or updating ZapZap (WhatsApp Desktop)"
+    install_or_update_flatpak "com.rtosta.zapzap"
+}
+
+install_remmina() {
+    log "Installing or updating Remmina Remote Desktop (RDP/VNC/SSH)"
+    install_or_update_flatpak "org.remmina.Remmina"
+    configure_flatpak_keyring_access "org.remmina.Remmina"
+}
+
+install_git_guis() {
+    log "Installing or updating Git GUIs (Gittyup & GitKraken)"
+    install_or_update_flatpak "com.github.Murmele.Gittyup"
+    install_or_update_flatpak "com.axosoft.GitKraken"
+    configure_flatpak_keyring_access "com.axosoft.GitKraken"
+}
+
+install_download_managers() {
+    log "Installing or updating Download Managers (Motrix & Varia)"
+    install_or_update_flatpak "net.agalwood.Motrix"
+    install_or_update_flatpak "io.github.giantpinkrobots.varia"
+}
+
+install_ente_auth() {
+    log "Installing or updating Ente Auth (2FA Authenticator)"
+    install_or_update_flatpak "io.ente.auth"
+    configure_flatpak_keyring_access "io.ente.auth"
+}
+
+install_copyq() {
+    log "Installing or updating CopyQ Clipboard Manager"
+    install_or_update_flatpak "com.github.hluk.copyq"
+}
+
+install_heic_converter() {
+    log "Installing or updating Switcheroo Image Converter & HEIF/HEIC Support"
+    install_or_update_flatpak "io.gitlab.adhami3310.Converter"
+    disable_readonly_if_needed
+    sudo pacman -S --needed --noconfirm libheif kimageformats 2>/dev/null || true
+    restore_readonly
+}
+
+install_flatpak_cleaners() {
+    log "Installing or updating Warehouse & Flatseal (App Cleaner & Permissions)"
+    install_or_update_flatpak "io.github.flattool.Warehouse"
+    install_or_update_flatpak "com.github.tchx84.Flatseal"
+}
+
+install_gemini() {
+    log "Installing or updating Google Gemini CLI & Desktop Launcher"
+    local brew_bin=""
+    brew_bin="$(command -v brew || true)"
+    if [[ -z "$brew_bin" ]]; then
+        for candidate in /home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew"; do
+            if [[ -x "$candidate" ]]; then
+                brew_bin="$candidate"
+                break
+            fi
+        done
+    fi
+    if [[ -n "$brew_bin" ]]; then
+        eval "$("$brew_bin" shellenv)"
+        if brew list --formula gemini-cli >/dev/null 2>&1; then
+            brew upgrade gemini-cli || true
+        else
+            brew install gemini-cli || true
+        fi
+    elif command -v npm >/dev/null 2>&1; then
+        npm install -g @google/gemini-cli || true
+    else
+        install_homebrew
+    fi
+
+    mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
+    cat <<'EOF' > "$HOME/.local/bin/google-gemini-app"
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if flatpak info com.microsoft.Edge >/dev/null 2>&1; then
+    exec flatpak run com.microsoft.Edge --app=https://gemini.google.com
+elif flatpak info com.google.Chrome >/dev/null 2>&1; then
+    exec flatpak run com.google.Chrome --app=https://gemini.google.com
+elif command -v brave-origin >/dev/null 2>&1; then
+    exec brave-origin --app=https://gemini.google.com
+elif command -v brave >/dev/null 2>&1; then
+    exec brave --app=https://gemini.google.com
+else
+    exec xdg-open https://gemini.google.com
+fi
+EOF
+    chmod +x "$HOME/.local/bin/google-gemini-app"
+
+    cat <<EOF > "$HOME/.local/share/applications/google-gemini.desktop"
+[Desktop Entry]
+Name=Google Gemini
+Comment=Google Gemini AI Desktop Web App
+Exec=$HOME/.local/bin/google-gemini-app
+Icon=applications-internet
+Terminal=false
+Type=Application
+Categories=Network;Utility;Office;
+StartupNotify=true
+EOF
+    chmod +x "$HOME/.local/share/applications/google-gemini.desktop"
+    if [[ -d "$HOME/Desktop" ]]; then
+        cp -f "$HOME/.local/share/applications/google-gemini.desktop" "$HOME/Desktop/google-gemini.desktop"
+        chmod +x "$HOME/Desktop/google-gemini.desktop"
+    fi
+}
+
 install_by_id() {
     local id=$1
     case "$id" in
@@ -872,13 +994,24 @@ install_by_id() {
         42) install_cli_system_suite ;;
         43) install_cloud_sync_suite ;;
         44) install_pc_workstation_optimizer ;;
+        45) install_teams ;;
+        46) install_rocketchat ;;
+        47) install_whatsapp ;;
+        48) install_remmina ;;
+        49) install_git_guis ;;
+        50) install_download_managers ;;
+        51) install_ente_auth ;;
+        52) install_copyq ;;
+        53) install_heic_converter ;;
+        54) install_flatpak_cleaners ;;
+        55) install_gemini ;;
         *)  printf 'WARNING: Unknown application number: %s\n' "$id" >&2 ;;
     esac
 }
 
 install_all_apps() {
-    log "Installing All Applications, Browsers & Developer Tools (1..44)"
-    for i in {1..44}; do
+    log "Installing All Applications, Browsers & Developer Tools (1..55)"
+    for i in {1..55}; do
         install_by_id "$i"
     done
     log "All Applications, Browsers & Developer Tools installed successfully"
@@ -894,13 +1027,14 @@ show_tools_menu() {
     1) Google Chrome                2) Microsoft Edge (KWallet6 Sync)
     3) Brave Browser (Native)
 
-  [Developer & Productivity]
+  [Developer, AI & Productivity]
     4) Google Antigravity (IDE/CLI) 5) Visual Studio Code
     6) Android Studio               7) GitHub Desktop
     8) Postman                      9) Insomnia
    10) Wireshark                   11) draw.io
    12) FileZilla                   13) LibreOffice Suite
-   14) Distrobox & Podman
+   14) Distrobox & Podman          49) Gittyup & GitKraken (Git GUIs)
+   55) Google Gemini CLI & Web App
 
   [Communication & Remote Desktop]
    15) Zalo for Linux (AppImage)   16) LinuxViewer (UltraViewer)
@@ -909,28 +1043,32 @@ show_tools_menu() {
    21) Signal Desktop              22) Slack
    23) Zoom                        24) OpenBubbles (iMessage)
    25) Proton Mail                 26) Mozilla Thunderbird
-   27) KDE Connect
+   27) KDE Connect                 45) Teams for Linux (MS Teams)
+   46) Rocket.Chat Desktop         47) ZapZap (WhatsApp Desktop)
+   48) Remmina Remote Desktop (RDP/VNC)
 
   [Media, Audio & Streaming]
    28) Spotify                     29) VLC Media Player
    30) mpv Player & GStreamer      31) OBS Studio
    32) Parsec Game Streaming       33) NoiseTorch & Pavucontrol
 
-  [Networking, VPN & Cloud Sync]
+  [Networking, VPN, Cloud & Utilities]
    34) LocalSend                   35) Nextcloud Desktop
    36) Proton VPN                  37) WireGuard VPN & Tools (wgcf/vortix)
    38) OpenVPN & NM Plugin         43) OneDrive & Google Drive Sync Suite
+   50) Motrix & Varia Downloaders  51) Ente Auth (2FA Authenticator)
+   52) CopyQ Clipboard Manager     53) Switcheroo (HEIC Image Converter)
 
-  [Desktop Customization, KDE Apps, CLI & PC Optimizer]
+  [Desktop Customization, KDE Apps, CLI, Cleaners & PC Optimizer]
    39) Wallpaper Engine KDE6       40) KDE Apps (Kate/Okular/Ark/PartMgr)
-   41) Homebrew (fastfetch/gh)     42) CLI Suite (paru/btop/rg/tmux/zsh)
-   44) PC Workstation Optimizer (TCP BBR, ZRAM, Rootfs, CUPS, Boot Mode)
+   41) Homebrew (fastfetch/gh/gemini) 42) CLI Suite (paru/btop/rg/tmux/zsh)
+   44) PC Workstation Optimizer    54) Warehouse & Flatseal (App Cleaners)
 
-  [A] Install ALL Applications & Tools (1..44)
+  [A] Install ALL Applications & Tools (1..55)
   [0] Cancel / Exit
 ===================================================================
 EOF
-    printf 'Enter app numbers separated by space or comma (e.g. 2, 15, 37, 43 or A for all): '
+    printf 'Enter app numbers separated by space or comma (e.g. 2, 15, 37, 45, 48 or A for all): '
 }
 
 # --- Main Execution ---

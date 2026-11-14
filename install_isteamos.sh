@@ -203,15 +203,18 @@ show_menu() {
   [4] Install Decky Components & TDP Control Only
       • Decky Loader v3.3.1 + SimpleDeckyTDP v1.0.7 + DeckyWARP
 
-  [5] Install Applications, Browsers & Developer Tools (Interactive 1..44)
-      • Select individual apps one by one (1..44) or install all (A):
+  [5] Install Applications, Browsers & Developer Tools (Interactive 1..55)
+      • Select individual apps one by one (1..55) or install all (A):
         Chrome, Edge, Brave, Antigravity IDE/CLI, VS Code, Android Studio,
         GitHub Desktop, Postman, Insomnia, Wireshark, draw.io, FileZilla,
         LibreOffice, Distrobox/Podman, Zalo, LinuxViewer, Beeper, Discord,
         Telegram, Viber, Signal, Slack, Zoom, OpenBubbles, Proton Mail,
         Thunderbird, KDE Connect, Spotify, VLC, mpv, OBS, Parsec, NoiseTorch,
         LocalSend, Nextcloud, Proton VPN, WireGuard, OpenVPN, Wallpaper Engine,
-        KDE Apps, Homebrew, CLI Suite, OneDrive & Google Drive Sync
+        KDE Apps, Homebrew, CLI Suite, OneDrive & Google Drive Sync, Teams,
+        Rocket.Chat, WhatsApp/ZapZap, Remmina RDP, GitKraken/Gittyup,
+        Motrix/Varia, Ente Auth 2FA, CopyQ, Switcheroo HEIC, Warehouse/Flatseal,
+        Gemini CLI/App
 
   [6] PC Workstation & System Optimizer (Use SteamOS Like a Full PC)
       • Kernel, ZRAM Swappiness, IDE File-Watchers (inotify) & TCP BBR Network
