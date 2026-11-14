@@ -171,32 +171,6 @@ Select **`5`** (`--tools`) to open the interactive **iSteamOS Ghost Toolbox** wi
 - **Networking, VPN, Cloud & Utilities:** `34)` LocalSend, `35)` Nextcloud Desktop, `36)` Proton VPN, `37)` WireGuard VPN & Tools (`wireguard-tools`, `wgcf`, `vortix`, `wireproxy`), `38)` OpenVPN & NetworkManager Plugin, `43)` OneDrive & Google Drive Cloud Sync Suite, `50)` Motrix & Varia Download Managers, `51)` Ente Auth (2FA Authenticator), `52)` CopyQ Clipboard Manager, `53)` Switcheroo Image Converter (`HEIC/HEIF` support via `libheif` & `kimageformats`).
 - **Desktop Customization, CLI, Cleaners & System:** `39)` Wallpaper Engine KDE 6 Plugin, `40)` KDE Apps (Kate, Okular, Gwenview, Spectacle, Ark, Filelight, PartitionManager, Qrca, Dolphin, Konsole, KWalletManager), `41)` Homebrew (`fastfetch`, `gh`, `neofetch`, `node`, `gemini-cli`), `42)` System & Dev CLI Suite (`base-devel`, `paru`, `btop`, `htop`, `ripgrep`, `fd`, `tmux`, `vim`, `fish`, `zsh`, `jq`, `7zip`, `mangohud`, `gamemode`), `44)` PC Workstation Optimizer, `54)` Warehouse & Flatseal (App Cleaners & Permissions).
 
-#### macOS to SteamOS App Equivalents
-| macOS App | SteamOS / Linux Equivalent in iSteamOS | Tool ID |
-| :--- | :--- | :--- |
-| `Microsoft Teams.app` | Teams for Linux (`com.github.IsmaelMartinez.teams_for_linux`) | `#45` |
-| `Rocket.Chat.app` / `Viettel Digital Workplace.app` | Rocket.Chat Desktop (`chat.rocket.RocketChat`) | `#46` |
-| `WhatsApp.app` | ZapZap WhatsApp Desktop (`com.rtosta.zapzap`) | `#47` |
-| `Windows App.app` (Remote Desktop) | Remmina Remote Desktop (`org.remmina.Remmina`) | `#48` |
-| `Sourcetree.app` | Gittyup & GitKraken (`Gittyup`, `GitKraken`) | `#49` |
-| `NeatDownloadManager.app` | Motrix & Varia Download Managers | `#50` |
-| `G2FA.app` | Ente Auth 2FA Authenticator (`io.ente.auth`) | `#51` |
-| `CopyClip.app` | CopyQ Clipboard Manager (`com.github.hluk.copyq`) | `#52` |
-| `HEIC Converter.app` | Switcheroo Image Converter + `libheif` / `kimageformats` | `#53` |
-| `Pearcleaner.app` / `DevCleaner.app` | Warehouse & Flatseal (`Warehouse`, `Flatseal`) | `#54` |
-| `Gemini.app` & `gemini-cli` | Google Gemini CLI (`gemini-cli`) + Desktop Web App | `#55` (`#41`) |
-| `EVKeyMac.app` | Fcitx5 + Unikey (Telex Unicode) | `--unikey` (`[3]`) |
-| `Cloudflare WARP.app` | `cloudflare-warp-bin` + DeckyWARP + DoT | `--steam-fix` (`[2]`) |
-| `CloudMounter.app` / `OneDrive.app` | Rclone VFS + OneDriver + OneDriveGUI + KIO-GDrive | `#43` (`--cloud-sync`) |
-| `Antigravity.app` / `Antigravity IDE.app` | Google Antigravity IDE & CLI | `#4` |
-| `Microsoft Edge.app` | Microsoft Edge (with KWallet5/6 sync) | `#2` |
-| `Zalo.app` | Zalo for Linux (AppImage) | `#15` |
-| `MacViewer.app` | LinuxViewer (UltraViewer compatible) | `#16` |
-| `Beeper Desktop.app` | Beeper Unified Messenger (AppImage) | `#17` |
-| `Discord.app` / `Telegram.app` / `Viber.app` | Discord / Telegram Desktop / Viber | `#18`, `#19`, `#20` |
-| `LibreOffice.app` / `WireGuard.app` | LibreOffice Suite / WireGuard + `wgcf` + `vortix` | `#13`, `#37` |
-| `Macs Fan Control.app` (TDP/Thermal) | SimpleDeckyTDP + Decky Loader | `--decky` (`[4]`) |
-
 ---
 
 ### 5. System Doctor & Diagnostics (`[8] --doctor`)

@@ -498,7 +498,7 @@ EOF
 }
 
 install_or_update_linuxviewer() {
-    log "Installing or updating LinuxViewer (MacViewer/UltraViewer for Linux)"
+    log "Installing or updating LinuxViewer (UltraViewer for Linux)"
     local lv_tar="$temp_dir/linuxviewer.tar.gz"
     local lv_extract="$temp_dir/linuxviewer_extract"
     local lv_url="https://github.com/DeanOpen/MacViewer/releases/latest/download/linuxviewer-wayland-x86_64.tar.gz"
